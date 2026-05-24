@@ -173,7 +173,7 @@ def send_initial_menu(chat_id, user_id):
         user_sessions[chat_id] = "AUTHORIZED"
         admin_menu = (
             "🚀 *Welcome To Rocker Xposed* 👑\n"
-            "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n"
+            "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n"
             "⚡ • *Fast Reach Service.*\n"
             "🔓 • *Without Otp Setup.*\n"
             "📍 • *Google Map Error Fix.*\n"
@@ -200,7 +200,7 @@ def send_initial_menu(chat_id, user_id):
         user_sessions[chat_id] = "AUTHORIZED"
         user_menu = (
             "🚀 *Welcome To Rocker Xposed* 👋\n"
-            "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n"
+            "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n"
             "⚡ • *Fast Reach Service.*\n"
             "🔓 • *Without Otp Setup.*\n"
             "📍 • *Google Map Error Fix.*\n"
