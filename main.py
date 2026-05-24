@@ -20,7 +20,7 @@ def run_server():
 # --- 2. BOT CONFIGURATION ---
 BOT_TOKEN = "8497914783:AAH-EbriHxs3tvU-AnI70fxDyreblYgei-E"
 
-# 🌟 DONO ADMIN IDs YAHAN SET KAR DI HAIN 🌟
+# 🌟 DONO ADMIN IDs SET KAR DI HAIN 🌟
 ADMIN_IDS = [8347566603, 6631326358]
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -178,9 +178,16 @@ def handle_incoming_credentials(message):
 if __name__ == "__main__":
     init_db()
     
+    # 🌟 ERROR FIX: Pehle se active kisi bhi webhook ko delete karne ke liye
+    try:
+        print("Removing old webhooks...")
+        bot.remove_webhook()
+    except Exception as e:
+        print(f"No webhook to remove: {e}")
+    
+    # Start Flask Web Server for Render Web Service Port bypass
     server_thread = Thread(target=run_server)
     server_thread.start()
     
     print("🚀 Rocker Xposed Bot is Polling smoothly with Main Server...")
-    bot.infinity_polling()
-
+    bot.infinity_polling(skip_pending=True)
