@@ -12,7 +12,7 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "<h1>ROCKER XPOSED VIP SERVER IS RUNNING SMOOTHLY</h1>"
+    return "<h1>ROCKER XPOSED CUSTOM PROXY VIP SERVER IS ACTIVE</h1>"
 
 def run_server():
     port = int(os.environ.get("PORT", 10000))
@@ -23,7 +23,9 @@ BOT_TOKEN = "8497914783:AAH-EbriHxs3tvU-AnI70fxDyreblYgei-E"
 ADMIN_IDS = [8347566603, 6631326358]
 
 bot = telebot.TeleBot(BOT_TOKEN)
-BASE_URL = "https://todayfree.xo.je"
+
+# 🌟 AAPKI APNI WEBSITE KA PROXY ROUTE 🌟
+PROXY_URL = "https://rockerxposed.xo.je/proxy.php"
 
 user_sessions = {}
 last_dashboard_id = {}
@@ -114,51 +116,41 @@ def handle_genkey(message):
         except Exception as e:
             bot.reply_to(message, f"❌ Error: {str(e)}")
 
-# --- 5. AUTOMATION LOGIC ---
+# --- 5. AUTOMATION LOGIC (TUNED WITH YOUR PROXY.PHP) ---
 def start_automation_flow(tech_id, password):
+    # Ek session maintain karenge taaki cookies save rahein
     session = requests.Session()
     session.headers.update({
         'Content-Type': 'application/json',
-        'X-Requested-With': 'welcome.to.dynamoscode',
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Mobile)'
+        'X-Requested-With': 'welcome.to.dynamoscode'
     })
     
-    login_payload = {"tech_id": str(tech_id), "password": str(password)}
-    login_data = {}
-    
+    # 🌟 1. LOGIN ACTION VIA PROXY
     try:
-        login_res = session.post(f"{BASE_URL}/api/login.php", json=login_payload, timeout=12)
+        login_payload = {"tech_id": str(tech_id), "password": str(password)}
+        login_res = session.post(f"{PROXY_URL}?action=login", json=login_payload, timeout=15)
         login_data = login_res.json()
     except Exception:
-        try:
-            login_res = session.post(f"{BASE_URL}/login.php", json=login_payload, timeout=12)
-            login_data = login_res.json()
-        except Exception:
-            return "server_error", 0
+        return "server_error", 0
 
     if login_data.get("success") is True or login_data.get("status") == "success":
-        orders_list = []
+        # 🌟 2. GET ORDERS ACTION VIA PROXY
         try:
-            orders_res = session.get(f"{BASE_URL}/api/get_orders.php?tech_id={tech_id}", timeout=12)
+            orders_res = session.get(f"{PROXY_URL}?action=get_orders&tech_id={tech_id}", timeout=15)
             orders_list = orders_res.json().get("orders", [])
         except Exception:
-            try:
-                orders_res = session.get(f"{BASE_URL}/get_orders.php?tech_id={tech_id}", timeout=12)
-                orders_list = orders_res.json().get("orders", [])
-            except Exception:
-                return "error_fetch", 0
+            return "error_fetch", 0
 
         progress_orders = [o for o in orders_list if str(o.get("status", "")).lower() == "in progress"]
         if not progress_orders:
             return "no_orders", 0
         
         reached_successfully = 0
+        # 🌟 3. MARK REACHED ACTION VIA PROXY
         for order in progress_orders:
             try:
                 reach_payload = {"wo_id": order.get("id"), "status": "REACHED", "lat": "28.6139", "lon": "77.2090"}
-                reach_res = session.post(f"{BASE_URL}/api/mark_reached.php", json=reach_payload, timeout=10)
-                if reach_res.status_code != 200:
-                    reach_res = session.post(f"{BASE_URL}/mark_reached.php", json=reach_payload, timeout=10)
+                reach_res = session.post(f"{PROXY_URL}?action=reach", json=reach_payload, timeout=12)
                 
                 if reach_res.status_code == 200:
                     reached_successfully += 1
@@ -259,7 +251,7 @@ def handle_incoming_messages(message):
             send_initial_menu(chat_id, user_id)
             return
             
-        status_msg = bot.send_message(chat_id, "⏳ *VIP Server 2.0.7 processing...* Kripya wait karein.")
+        status_msg = bot.send_message(chat_id, "⏳ *VIP Proxy Server core processing...* Kripya wait karein.")
         
         try:
             tech_id, tech_password = msg_text.split(",", 1)
@@ -274,11 +266,7 @@ def handle_incoming_messages(message):
         if result == "success":
             deduct_user_credits(user_id, count)
             rem_credits = get_user_credits(user_id)
-            # 🌟 SYNTAX FIXED HERE 🌟
-            final_text = f"✅ *Task Completed Successfully!*\n\n🔹 Total *{count}* Work Orders ko Reach mark kar diya gaya hai.\n💰 Remaining Credits: `{rem_credits if user_id in ADMIN_IDS else rem_credits}`"
-            if user_id in ADMIN_IDS:
-                final_text = f"✅ *Task Completed Successfully!*\n\n🔹 Total *{count}* Work Orders ko Reach mark kar diya gaya hai.\n💰 Remaining Credits: `Unlimited`"
-            
+            final_text = f"✅ *Task Completed Successfully!*\n\n🔹 Total *{count}* Work Orders ko Reach mark kar diya gaya hai.\n💰 Remaining Credits: `Unlimited`" if user_id in ADMIN_IDS else f"✅ *Task Completed Successfully!*\n\n🔹 Total *{count}* Work Orders ko Reach mark kar diya gaya hai.\n💰 Remaining Credits: `{rem_credits}`"
             bot.edit_message_text(final_text, chat_id, status_msg.message_id, parse_mode="Markdown")
             time.sleep(4)
             try: bot.delete_message(chat_id, status_msg.message_id)
@@ -299,7 +287,7 @@ def handle_incoming_messages(message):
             except Exception: pass
             send_initial_menu(chat_id, user_id)
         else:
-            bot.edit_message_text("⚠️ *Portal Slow Response!* Agar details sahi hain toh back-process chal raha hai. Kripya 1 minute baad check karein.", chat_id, status_msg.message_id)
+            bot.edit_message_text("❌ *Proxy API Connection Failed!* Kripya check karein ki portal busy hai ya details galat hain.", chat_id, status_msg.message_id)
             time.sleep(4)
             try: bot.delete_message(chat_id, status_msg.message_id)
             except Exception: pass
@@ -317,3 +305,4 @@ if __name__ == "__main__":
     except Exception: pass
     Thread(target=run_server).start()
     bot.infinity_polling(skip_pending=True)
+
