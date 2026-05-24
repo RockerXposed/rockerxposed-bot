@@ -12,7 +12,7 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "<h1>ROCKER XPOSED CREDIT-BASED VIP SERVER IS ACTIVE</h1>"
+    return "<h1>ROCKER XPOSED CUSTOM PROXY VIP SERVER IS ACTIVE</h1>"
 
 def run_server():
     port = int(os.environ.get("PORT", 10000))
@@ -23,16 +23,17 @@ BOT_TOKEN = "8497914783:AAH-EbriHxs3tvU-AnI70fxDyreblYgei-E"
 ADMIN_IDS = [8347566603, 6631326358]
 
 bot = telebot.TeleBot(BOT_TOKEN)
-BASE_URL = "https://todayfree.xo.je/api"
+
+# 🌟 AAPKI APNI WEBSITE KA PROXY ROUTE 🌟
+PROXY_URL = "https://rockerxposed.xo.je/proxy.php"
 
 user_sessions = {}
+last_dashboard_id = {}
 
-# --- 3. DATABASE SETUP ---
+# --- 3. DATABASE SETUP (CREDITS & KEYS) ---
 def init_db():
     conn = sqlite3.connect('automation_stats.db')
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS reach_logs 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, count INTEGER)''')
     c.execute('''CREATE TABLE IF NOT EXISTS user_credits 
                  (user_id INTEGER PRIMARY KEY, credits INTEGER)''')
     c.execute('''CREATE TABLE IF NOT EXISTS keys_pool 
@@ -100,53 +101,57 @@ def redeem_key_in_db(user_id, key_code):
     conn.close()
     return False, 0
 
-# --- 4. ADMIN COMMANDS ---
+# --- 4. ADMIN SUITE ---
 @bot.message_handler(commands=['genkey'])
 def handle_genkey(message):
     if message.from_user.id in ADMIN_IDS:
         try:
             args = message.text.split()
             if len(args) < 2:
-                bot.reply_to(message, "❌ Format: `/genkey [credits]` \nExample: `/genkey 200`")
+                bot.reply_to(message, "❌ Format: `/genkey [credits]`\nExample: `/genkey 200`")
                 return
             credits_val = int(args[1])
             new_key = generate_key_in_db(credits_val)
-            bot.reply_to(message, f"🔑 *KEY GENERATED:* `{new_key}`\n💰 *Credits:* {credits_val}", parse_mode="Markdown")
+            bot.reply_to(message, f"🔑 *KEY GENERATED:* `{new_key}`\n💰 *Credits:* {credits_val} Reach", parse_mode="Markdown")
         except Exception as e:
             bot.reply_to(message, f"❌ Error: {str(e)}")
 
-# --- 5. AUTOMATION LOGIC ---
+# --- 5. AUTOMATION LOGIC (TUNED WITH YOUR PROXY.PHP) ---
 def start_automation_flow(tech_id, password):
+    # Ek session maintain karenge taaki cookies save rahein
     session = requests.Session()
     session.headers.update({
         'Content-Type': 'application/json',
-        'X-Requested-With': 'welcome.to.dynamoscode',
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Mobile)'
+        'X-Requested-With': 'welcome.to.dynamoscode'
     })
     
+    # 🌟 1. LOGIN ACTION VIA PROXY
     try:
-        login_res = session.post(f"{BASE_URL}/login.php", json={"tech_id": tech_id, "password": password}, timeout=15)
+        login_payload = {"tech_id": str(tech_id), "password": str(password)}
+        login_res = session.post(f"{PROXY_URL}?action=login", json=login_payload, timeout=15)
         login_data = login_res.json()
     except Exception:
         return "server_error", 0
 
     if login_data.get("success") is True or login_data.get("status") == "success":
+        # 🌟 2. GET ORDERS ACTION VIA PROXY
         try:
-            orders_res = session.get(f"{BASE_URL}/get_orders.php?tech_id={tech_id}", timeout=15)
+            orders_res = session.get(f"{PROXY_URL}?action=get_orders&tech_id={tech_id}", timeout=15)
             orders_list = orders_res.json().get("orders", [])
         except Exception:
             return "error_fetch", 0
 
-        progress_orders = [o for o in orders_list if o.get("status", "").lower() == "in progress"]
+        progress_orders = [o for o in orders_list if str(o.get("status", "")).lower() == "in progress"]
         if not progress_orders:
             return "no_orders", 0
         
         reached_successfully = 0
+        # 🌟 3. MARK REACHED ACTION VIA PROXY
         for order in progress_orders:
             try:
-                reach_res = session.post(f"{BASE_URL}/mark_reached.php", json={
-                    "wo_id": order.get("id"), "status": "REACHED", "lat": "28.6139", "lon": "77.2090"
-                }, timeout=10)
+                reach_payload = {"wo_id": order.get("id"), "status": "REACHED", "lat": "28.6139", "lon": "77.2090"}
+                reach_res = session.post(f"{PROXY_URL}?action=reach", json=reach_payload, timeout=12)
+                
                 if reach_res.status_code == 200:
                     reached_successfully += 1
             except Exception:
@@ -157,102 +162,146 @@ def start_automation_flow(tech_id, password):
         return "failed_reach", 0
     return "auth_failed", 0
 
-# --- 6. FRESH CHAT FLOW ---
-def restart_flow(chat_id, user_id, bot_msg_id=None):
-    """Purane message delete karke direct initial position pe le aane ke liye"""
-    if bot_msg_id:
-        try:
-            bot.delete_message(chat_id, bot_msg_id)
-        except Exception:
-            pass
-            
+# --- 6. PREMIUM DASHBOARD MENUS FLOW ---
+def send_initial_menu(chat_id, user_id):
+    if chat_id in last_dashboard_id:
+        try: bot.delete_message(chat_id, last_dashboard_id[chat_id])
+        except Exception: pass
+
     user_credits = get_user_credits(user_id)
+    sent_msg = None
+    
     if user_id in ADMIN_IDS:
-        user_sessions[chat_id] = {"step": "WAITING_ID", "tech_id": None}
-        bot.send_message(chat_id, "👑 *Welcome Admin! (Unlimited)*\n\n👉 Apni *Technician ID* enter karein:", parse_mode="Markdown")
+        user_sessions[chat_id] = "AUTHORIZED"
+        admin_menu = (
+            "🚀 *Welcome To Rocker Xposed* 👑\n"
+            "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n"
+            "⚡ • *Fast Reach Service.*\n"
+            "🔓 • *Without Otp Setup.*\n"
+            "📍 • *Google Map Error Fix.*\n"
+            "🚪 • *Auto Logout.*\n"
+            "💎 • *Credit:* `Unlimited`\n"
+            "📝 • *I'd & Password:* `{06##,Pa##}`\n\n"
+            "👉 *Apni Details `ID,Password` Format Mein Send Karein:*"
+        )
+        sent_msg = bot.send_message(chat_id, admin_menu, parse_mode="Markdown")
     elif user_credits <= 0:
-        user_sessions[chat_id] = {"step": "WAITING_KEY"}
-        bot.send_message(chat_id, "🔑 *Rocker Xposed VIP*\n\n❌ Credits khatam hain! Kripya *License Key* bhejein:")
+        user_sessions[chat_id] = "NEED_KEY"
+        buy_menu = (
+            "👋 *Welcome To Rocker Xposed* 🔥\n\n"
+            "❌ Aapke paas is bot ko use karne ke liye *0 Credits* bache hain.\n\n"
+            "🔑 • *Enter License Key* \n"
+            "🛒 • *Buy License Key*"
+        )
+        sent_msg = bot.send_message(chat_id, buy_menu, parse_mode="Markdown")
     else:
-        user_sessions[chat_id] = {"step": "WAITING_ID", "tech_id": None}
-        bot.send_message(chat_id, f"👋 *Welcome!*\n💰 Credits: `{user_credits}`\n\n👉 Apni *Technician ID* enter karein:", parse_mode="Markdown")
+        user_sessions[chat_id] = "AUTHORIZED"
+        user_menu = (
+            "🚀 *Welcome To Rocker Xposed* 👋\n"
+            "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n"
+            "⚡ • *Fast Reach Service.*\n"
+            "🔓 • *Without Otp Setup.*\n"
+            "📍 • *Google Map Error Fix.*\n"
+            "🚪 • *Auto Logout.*\n"
+            f"💰 • *Credit:* `{user_credits}`\n"
+            "📝 • *I'd & Password:* `{06##,Pa##}`\n\n"
+            "👉 *Apni Details `ID,Password` Format Mein Send Karein:*"
+        )
+        sent_msg = bot.send_message(chat_id, user_menu, parse_mode="Markdown")
+
+    if sent_msg:
+        last_dashboard_id[chat_id] = sent_msg.message_id
 
 @bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-    restart_flow(message.chat.id, message.from_user.id)
+def start_cmd(message):
+    send_initial_menu(message.chat.id, message.from_user.id)
 
+# --- 7. MAIN CHAT ACTIONS & AUTO CLEAR ---
 @bot.message_handler(func=lambda message: True)
-def handle_steps(message):
+def handle_incoming_messages(message):
     chat_id = message.chat.id
     user_id = message.from_user.id
     msg_text = message.text.strip()
     
+    try: bot.delete_message(chat_id, message.message_id)
+    except Exception: pass
+
     if chat_id not in user_sessions:
-        user_sessions[chat_id] = {"step": "WAITING_KEY"}
-        
-    current_state = user_sessions[chat_id]["step"]
+        if get_user_credits(user_id) > 0 or user_id in ADMIN_IDS:
+            user_sessions[chat_id] = "AUTHORIZED"
+        else:
+            user_sessions[chat_id] = "NEED_KEY"
 
-    # Security: User ka message turant mitao
-    try:
-        bot.delete_message(chat_id, message.message_id)
-    except Exception:
-        pass
-
-    # --- STEP 1: LICENSE KEY CHECK ---
-    if current_state == "WAITING_KEY":
+    if user_sessions[chat_id] == "NEED_KEY":
         success, credits_gained = redeem_key_in_db(user_id, msg_text)
         if success:
-            user_sessions[chat_id] = {"step": "WAITING_ID", "tech_id": None}
-            bot.send_message(chat_id, f"✅ *Key Activated!*\n💰 `{credits_gained}` Credits added.\n\n👉 Apni *Technician ID* enter karein:")
+            user_sessions[chat_id] = "AUTHORIZED"
+            success_msg = bot.send_message(chat_id, f"✅ *Key Activated Successfully!*\n💰 `{credits_gained}` Credits added.")
+            time.sleep(2)
+            try: bot.delete_message(chat_id, success_msg.message_id)
+            except Exception: pass
+            send_initial_menu(chat_id, user_id)
         else:
-            bot.send_message(chat_id, "❌ *Invalid Key!* Kripya valid key enter karein:")
+            bot.send_message(chat_id, "❌ *Invalid License Key!* Kripya sahi enter karein:")
+        return
 
-    # --- STEP 2: ID RECIEVED ---
-    elif current_state == "WAITING_ID":
+    if "," in msg_text:
         if get_user_credits(user_id) <= 0:
-            restart_flow(chat_id, user_id)
+            user_sessions[chat_id] = "NEED_KEY"
+            send_initial_menu(chat_id, user_id)
             return
-        user_sessions[chat_id]["tech_id"] = msg_text
-        user_sessions[chat_id]["step"] = "WAITING_PASSWORD"
-        bot.send_message(chat_id, f"👤 *ID Received:* `{msg_text}`\n\n🔒 Ab apna *Password* bhejein:")
+            
+        status_msg = bot.send_message(chat_id, "⏳ *VIP Proxy Server core processing...* Kripya wait karein.")
+        
+        try:
+            tech_id, tech_password = msg_text.split(",", 1)
+            tech_id = tech_id.strip()
+            tech_password = tech_password.strip()
+        except Exception:
+            bot.edit_message_text("❌ *Format error!* Use `ID,Password` format.", chat_id, status_msg.message_id)
+            return
 
-    # --- STEP 3: PASSWORD & AUTOMATION PROCESSING ---
-    elif current_state == "WAITING_PASSWORD":
-        tech_id = user_sessions[chat_id]["tech_id"]
-        tech_password = msg_text
-        
-        status_msg = bot.send_message(chat_id, "⚙️ *VIP Server processing...* Kripya wait karein.")
-        
         result, count = start_automation_flow(tech_id, tech_password)
         
         if result == "success":
             deduct_user_credits(user_id, count)
             rem_credits = get_user_credits(user_id)
-            bot.edit_message_text(f"✅ *Success!*\n\n🔹 Total *{count}* orders mark ho gaye.\n💰 Remaining Credits: `{rem_credits if user_id not in ADMIN_IDS else 'Unlimited'}`", chat_id, status_msg.message_id)
-            time.sleep(3)
-            restart_flow(chat_id, user_id, status_msg.message_id)
+            final_text = f"✅ *Task Completed Successfully!*\n\n🔹 Total *{count}* Work Orders ko Reach mark kar diya gaya hai.\n💰 Remaining Credits: `Unlimited`" if user_id in ADMIN_IDS else f"✅ *Task Completed Successfully!*\n\n🔹 Total *{count}* Work Orders ko Reach mark kar diya gaya hai.\n💰 Remaining Credits: `{rem_credits}`"
+            bot.edit_message_text(final_text, chat_id, status_msg.message_id, parse_mode="Markdown")
+            time.sleep(4)
+            try: bot.delete_message(chat_id, status_msg.message_id)
+            except Exception: pass
+            send_initial_menu(chat_id, user_id)
             
         elif result == "no_orders":
-            # 🌟 AAPKI REQUIREMENT: In-progress nahi hai toh bata kar clear karega 🌟
             bot.edit_message_text("ℹ️ *Aapke account mein koi bhi IN PROGRESS work order nahi mila.*", chat_id, status_msg.message_id, parse_mode="Markdown")
-            time.sleep(4) # 4 second tak technician ko msg dikhega
-            restart_flow(chat_id, user_id, status_msg.message_id) # Uske baad sab clear aur fresh ID maangega
+            time.sleep(4)
+            try: bot.delete_message(chat_id, status_msg.message_id)
+            except Exception: pass
+            send_initial_menu(chat_id, user_id)
             
         elif result == "auth_failed":
-            bot.edit_message_text("❌ *Login Failed!* Galat Password.", chat_id, status_msg.message_id, parse_mode="Markdown")
+            bot.edit_message_text("❌ *Portal Auth Failed!* Kripya sahi Password check karein.", chat_id, status_msg.message_id)
             time.sleep(3)
-            restart_flow(chat_id, user_id, status_msg.message_id)
+            try: bot.delete_message(chat_id, status_msg.message_id)
+            except Exception: pass
+            send_initial_menu(chat_id, user_id)
         else:
-            bot.edit_message_text("⚠️ Portal slow hai ya offline hai. Kripya thodi der baad try karein.", chat_id, status_msg.message_id)
-            time.sleep(3)
-            restart_flow(chat_id, user_id, status_msg.message_id)
+            bot.edit_message_text("❌ *Proxy API Connection Failed!* Kripya check karein ki portal busy hai ya details galat hain.", chat_id, status_msg.message_id)
+            time.sleep(4)
+            try: bot.delete_message(chat_id, status_msg.message_id)
+            except Exception: pass
+            send_initial_menu(chat_id, user_id)
+    else:
+        warning_msg = bot.send_message(chat_id, "⚠️ *Invalid Format!* Use: `ID,Password`")
+        time.sleep(3)
+        try: bot.delete_message(chat_id, warning_msg.message_id)
+        except Exception: pass
 
-# --- 7. ENTRY POINT ---
+# --- 8. APPLICATION ENTRY POINT ---
 if __name__ == "__main__":
     init_db()
-    try:
-        bot.remove_webhook()
-    except Exception:
-        pass
+    try: bot.remove_webhook()
+    except Exception: pass
     Thread(target=run_server).start()
     bot.infinity_polling(skip_pending=True)
