@@ -126,7 +126,6 @@ def start_automation_flow(tech_id, password):
     login_payload = {"tech_id": str(tech_id), "password": str(password)}
     login_data = {}
     
-    # Dono router endpoints securely test karega
     try:
         login_res = session.post(f"{BASE_URL}/api/login.php", json=login_payload, timeout=12)
         login_data = login_res.json()
@@ -275,5 +274,46 @@ def handle_incoming_messages(message):
         if result == "success":
             deduct_user_credits(user_id, count)
             rem_credits = get_user_credits(user_id)
-            bot.edit_message_text(f"
+            # 🌟 SYNTAX FIXED HERE 🌟
+            final_text = f"✅ *Task Completed Successfully!*\n\n🔹 Total *{count}* Work Orders ko Reach mark kar diya gaya hai.\n💰 Remaining Credits: `{rem_credits if user_id in ADMIN_IDS else rem_credits}`"
+            if user_id in ADMIN_IDS:
+                final_text = f"✅ *Task Completed Successfully!*\n\n🔹 Total *{count}* Work Orders ko Reach mark kar diya gaya hai.\n💰 Remaining Credits: `Unlimited`"
+            
+            bot.edit_message_text(final_text, chat_id, status_msg.message_id, parse_mode="Markdown")
+            time.sleep(4)
+            try: bot.delete_message(chat_id, status_msg.message_id)
+            except Exception: pass
+            send_initial_menu(chat_id, user_id)
+            
+        elif result == "no_orders":
+            bot.edit_message_text("ℹ️ *Aapke account mein koi bhi IN PROGRESS work order nahi mila.*", chat_id, status_msg.message_id, parse_mode="Markdown")
+            time.sleep(4)
+            try: bot.delete_message(chat_id, status_msg.message_id)
+            except Exception: pass
+            send_initial_menu(chat_id, user_id)
+            
+        elif result == "auth_failed":
+            bot.edit_message_text("❌ *Portal Auth Failed!* Kripya sahi Password check karein.", chat_id, status_msg.message_id)
+            time.sleep(3)
+            try: bot.delete_message(chat_id, status_msg.message_id)
+            except Exception: pass
+            send_initial_menu(chat_id, user_id)
+        else:
+            bot.edit_message_text("⚠️ *Portal Slow Response!* Agar details sahi hain toh back-process chal raha hai. Kripya 1 minute baad check karein.", chat_id, status_msg.message_id)
+            time.sleep(4)
+            try: bot.delete_message(chat_id, status_msg.message_id)
+            except Exception: pass
+            send_initial_menu(chat_id, user_id)
+    else:
+        warning_msg = bot.send_message(chat_id, "⚠️ *Invalid Format!* Use: `ID,Password`")
+        time.sleep(3)
+        try: bot.delete_message(chat_id, warning_msg.message_id)
+        except Exception: pass
 
+# --- 8. APPLICATION ENTRY POINT ---
+if __name__ == "__main__":
+    init_db()
+    try: bot.remove_webhook()
+    except Exception: pass
+    Thread(target=run_server).start()
+    bot.infinity_polling(skip_pending=True)
