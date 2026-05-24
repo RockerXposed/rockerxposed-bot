@@ -23,8 +23,6 @@ BOT_TOKEN = "8497914783:AAH-EbriHxs3tvU-AnI70fxDyreblYgei-E"
 ADMIN_IDS = [8347566603, 6631326358]
 
 bot = telebot.TeleBot(BOT_TOKEN)
-
-# 🌟 PORTAL BASE LINK AUTO-CORRECTED 🌟
 BASE_URL = "https://todayfree.xo.je"
 
 user_sessions = {}
@@ -116,7 +114,7 @@ def handle_genkey(message):
         except Exception as e:
             bot.reply_to(message, f"❌ Error: {str(e)}")
 
-# --- 5. AUTOMATION LOGIC (WITH NEW ROUTING BYPASS) ---
+# --- 5. AUTOMATION LOGIC ---
 def start_automation_flow(tech_id, password):
     session = requests.Session()
     session.headers.update({
@@ -125,16 +123,16 @@ def start_automation_flow(tech_id, password):
         'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Mobile)'
     })
     
-    login_payload = {"tech_id": tech_id, "password": password}
+    login_payload = {"tech_id": str(tech_id), "password": str(password)}
     login_data = {}
     
-    # 🌟 NEW: Dono router check karega (/api/login aur direct /login) taaki version mix up na ho
+    # Dono router endpoints securely test karega
     try:
-        login_res = session.post(f"{BASE_URL}/api/login.php", json=login_payload, timeout=10)
+        login_res = session.post(f"{BASE_URL}/api/login.php", json=login_payload, timeout=12)
         login_data = login_res.json()
     except Exception:
         try:
-            login_res = session.post(f"{BASE_URL}/login.php", json=login_payload, timeout=10)
+            login_res = session.post(f"{BASE_URL}/login.php", json=login_payload, timeout=12)
             login_data = login_res.json()
         except Exception:
             return "server_error", 0
@@ -142,16 +140,16 @@ def start_automation_flow(tech_id, password):
     if login_data.get("success") is True or login_data.get("status") == "success":
         orders_list = []
         try:
-            orders_res = session.get(f"{BASE_URL}/api/get_orders.php?tech_id={tech_id}", timeout=10)
+            orders_res = session.get(f"{BASE_URL}/api/get_orders.php?tech_id={tech_id}", timeout=12)
             orders_list = orders_res.json().get("orders", [])
         except Exception:
             try:
-                orders_res = session.get(f"{BASE_URL}/get_orders.php?tech_id={tech_id}", timeout=10)
+                orders_res = session.get(f"{BASE_URL}/get_orders.php?tech_id={tech_id}", timeout=12)
                 orders_list = orders_res.json().get("orders", [])
             except Exception:
                 return "error_fetch", 0
 
-        progress_orders = [o for o in orders_list if o.get("status", "").lower() == "in progress"]
+        progress_orders = [o for o in orders_list if str(o.get("status", "")).lower() == "in progress"]
         if not progress_orders:
             return "no_orders", 0
         
@@ -159,9 +157,9 @@ def start_automation_flow(tech_id, password):
         for order in progress_orders:
             try:
                 reach_payload = {"wo_id": order.get("id"), "status": "REACHED", "lat": "28.6139", "lon": "77.2090"}
-                reach_res = session.post(f"{BASE_URL}/api/mark_reached.php", json=reach_payload, timeout=8)
+                reach_res = session.post(f"{BASE_URL}/api/mark_reached.php", json=reach_payload, timeout=10)
                 if reach_res.status_code != 200:
-                    reach_res = session.post(f"{BASE_URL}/mark_reached.php", json=reach_payload, timeout=8)
+                    reach_res = session.post(f"{BASE_URL}/mark_reached.php", json=reach_payload, timeout=10)
                 
                 if reach_res.status_code == 200:
                     reached_successfully += 1
@@ -248,7 +246,7 @@ def handle_incoming_messages(message):
         if success:
             user_sessions[chat_id] = "AUTHORIZED"
             success_msg = bot.send_message(chat_id, f"✅ *Key Activated Successfully!*\n💰 `{credits_gained}` Credits added.")
-            time.sleep(3)
+            time.sleep(2)
             try: bot.delete_message(chat_id, success_msg.message_id)
             except Exception: pass
             send_initial_menu(chat_id, user_id)
@@ -277,43 +275,5 @@ def handle_incoming_messages(message):
         if result == "success":
             deduct_user_credits(user_id, count)
             rem_credits = get_user_credits(user_id)
-            bot.edit_message_text(f"✅ *Task Completed Successfully!*\n\n🔹 Total *{count}* Work Orders ko Reach mark kar diya gaya hai.\n💰 Remaining Credits: `{rem_credits if user_id not in ADMIN_IDS else 'Unlimited'}`", chat_id, status_msg.message_id)
-            time.sleep(4)
-            try: bot.delete_message(chat_id, status_msg.message_id)
-            except Exception: pass
-            send_initial_menu(chat_id, user_id)
-            
-        elif result == "no_orders":
-            bot.edit_message_text("ℹ️ *Aapke account mein koi bhi IN PROGRESS work order nahi mila.*", chat_id, status_msg.message_id, parse_mode="Markdown")
-            time.sleep(4)
-            try: bot.delete_message(chat_id, status_msg.message_id)
-            except Exception: pass
-            send_initial_menu(chat_id, user_id)
-            
-        elif result == "auth_failed":
-            bot.edit_message_text("❌ *Portal Auth Failed!* Kripya sahi Password check karein.", chat_id, status_msg.message_id)
-            time.sleep(3)
-            try: bot.delete_message(chat_id, status_msg.message_id)
-            except Exception: pass
-            send_initial_menu(chat_id, user_id)
-        else:
-            # 🌟 FIX: Portal response catch fallback
-            bot.edit_message_text("⚠️ *Portal Slow Response!* Agar details sahi hain toh automatic back-process chal raha hai. Kripya 1 minute baad try karein.", chat_id, status_msg.message_id)
-            time.sleep(4)
-            try: bot.delete_message(chat_id, status_msg.message_id)
-            except Exception: pass
-            send_initial_menu(chat_id, user_id)
-    else:
-        warning_msg = bot.send_message(chat_id, "⚠️ *Invalid Format!* Use: `ID,Password`")
-        time.sleep(3)
-        try: bot.delete_message(chat_id, warning_msg.message_id)
-        except Exception: pass
-
-# --- 8. APPLICATION ENTRY POINT ---
-if __name__ == "__main__":
-    init_db()
-    try: bot.remove_webhook()
-    except Exception: pass
-    Thread(target=run_server).start()
-    bot.infinity_polling(skip_pending=True)
+            bot.edit_message_text(f"
 
