@@ -26,6 +26,8 @@ bot = telebot.TeleBot(BOT_TOKEN)
 BASE_URL = "https://todayfree.xo.je/api"
 
 user_sessions = {}
+# 🌟 PURANE DASHBOARD KI ID YAAD RAKHNE KE LIYE 🌟
+last_dashboard_id = {}
 
 # --- 3. DATABASE SETUP (CREDITS & KEYS) ---
 def init_db():
@@ -154,16 +156,24 @@ def start_automation_flow(tech_id, password):
         return "failed_reach", 0
     return "auth_failed", 0
 
-# --- 6. PREMIUM DASHBOARD MENUS FLOW ---
+# --- 6. PREMIUM DASHBOARD MENUS FLOW (WITH FIXED AUTO DELETE) ---
 def send_initial_menu(chat_id, user_id):
+    # 🌟 FIX: Naya menu bhejne se pehle, purane dashboard ko chat se poora mita do 🌟
+    if chat_id in last_dashboard_id:
+        try:
+            bot.delete_message(chat_id, last_dashboard_id[chat_id])
+        except Exception:
+            pass
+
     user_credits = get_user_credits(user_id)
+    sent_msg = None
     
-    # 👑 CASE 1: ONLY FOR ADMINS (UNLIMITED)
+    # 👑 CASE 1: ONLY FOR ADMINS
     if user_id in ADMIN_IDS:
         user_sessions[chat_id] = "AUTHORIZED"
         admin_menu = (
             "🚀 *Welcome To Rocker Xposed* 👑\n"
-            "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n"
+            "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n"
             "⚡ • *Fast Reach Service.*\n"
             "🔓 • *Without Otp Setup.*\n"
             "📍 • *Google Map Error Fix.*\n"
@@ -172,9 +182,9 @@ def send_initial_menu(chat_id, user_id):
             "📝 • *I'd & Password:* `{06##,Pa##}`\n\n"
             "👉 *Apni Details `ID,Password` Format Mein Send Karein:*"
         )
-        bot.send_message(chat_id, admin_menu, parse_mode="Markdown")
+        sent_msg = bot.send_message(chat_id, admin_menu, parse_mode="Markdown")
         
-    # 🛑 CASE 2: USER OUT OF CREDITS (BUY KEY OPTION)
+    # 🛑 CASE 2: USER OUT OF CREDITS
     elif user_credits <= 0:
         user_sessions[chat_id] = "NEED_KEY"
         buy_menu = (
@@ -183,14 +193,14 @@ def send_initial_menu(chat_id, user_id):
             "🔑 • *Enter License Key* \n"
             "🛒 • *Buy License Key*"
         )
-        bot.send_message(chat_id, buy_menu, parse_mode="Markdown")
+        sent_msg = bot.send_message(chat_id, buy_menu, parse_mode="Markdown")
         
-    # 👤 CASE 3: NORMAL AUTHORIZED USERS WITH LIVE CREDITS
+    # 👤 CASE 3: NORMAL USERS WITH CREDITS
     else:
         user_sessions[chat_id] = "AUTHORIZED"
         user_menu = (
             "🚀 *Welcome To Rocker Xposed* 👋\n"
-            "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n"
+            "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n"
             "⚡ • *Fast Reach Service.*\n"
             "🔓 • *Without Otp Setup.*\n"
             "📍 • *Google Map Error Fix.*\n"
@@ -199,7 +209,11 @@ def send_initial_menu(chat_id, user_id):
             "📝 • *I'd & Password:* `{06##,Pa##}`\n\n"
             "👉 *Apni Details `ID,Password` Format Mein Send Karein:*"
         )
-        bot.send_message(chat_id, user_menu, parse_mode="Markdown")
+        sent_msg = bot.send_message(chat_id, user_menu, parse_mode="Markdown")
+
+    # Naye dashboard ki ID ko save kar lo taaki agli baar ise mita sakein
+    if sent_msg:
+        last_dashboard_id[chat_id] = sent_msg.message_id
 
 @bot.message_handler(commands=['start', 'help'])
 def start_cmd(message):
@@ -212,7 +226,7 @@ def handle_incoming_messages(message):
     user_id = message.from_user.id
     msg_text = message.text.strip()
     
-    # Security: User ka input message screen se turant clear karo
+    # Security: User ka text message turant uda do
     try: bot.delete_message(chat_id, message.message_id)
     except Exception: pass
 
@@ -231,13 +245,12 @@ def handle_incoming_messages(message):
             time.sleep(3)
             try: bot.delete_message(chat_id, success_msg.message_id)
             except Exception: pass
-            # Pure chat automatic delete hokar naya active dashboard aayega
             send_initial_menu(chat_id, user_id)
         else:
             bot.send_message(chat_id, "❌ *Invalid License Key!* Kripya valid aur unused key enter karein:")
         return
 
-    # PHASE B: AUTHORIZED LOGIN FLOW (ID,PASSWORD DETECTION via COMMA)
+    # PHASE B: LOGIN FLOW
     if "," in msg_text:
         if get_user_credits(user_id) <= 0:
             user_sessions[chat_id] = "NEED_KEY"
@@ -266,15 +279,14 @@ def handle_incoming_messages(message):
             send_initial_menu(chat_id, user_id)
             
         elif result == "no_orders":
-            # 🌟 IN PROGRESS ORDERS NAHI HONE PAR REQUIREMENT FLOW 🌟
             bot.edit_message_text("ℹ️ *Aapke account mein koi bhi IN PROGRESS work order nahi mila.*", chat_id, status_msg.message_id, parse_mode="Markdown")
-            time.sleep(4) # 4 second message dikhega
-            try: bot.delete_message(chat_id, status_msg.message_id) # Phir chat automatic delete
+            time.sleep(4)
+            try: bot.delete_message(chat_id, status_msg.message_id)
             except Exception: pass
-            send_initial_menu(chat_id, user_id) # Phir automatic fresh menu dashboard manga lega!
+            send_initial_menu(chat_id, user_id)
             
         elif result == "auth_failed":
-            bot.edit_message_text("❌ *Portal Auth Failed!* Kripya sahi Technician Password check karein.", chat_id, status_msg.message_id)
+            bot.edit_message_text("❌ *Portal Auth Failed!* Kripya sahi Password check karein.", chat_id, status_msg.message_id)
             time.sleep(3)
             try: bot.delete_message(chat_id, status_msg.message_id)
             except Exception: pass
@@ -286,6 +298,7 @@ def handle_incoming_messages(message):
             except Exception: pass
             send_initial_menu(chat_id, user_id)
     else:
+        # User ne galat format daala toh ek short temporary warning dikhao aur mita do
         warning_msg = bot.send_message(chat_id, "⚠️ *Invalid Format!* Kripya details sirf `ID,Password` ke format mein enter karein.")
         time.sleep(3)
         try: bot.delete_message(chat_id, warning_msg.message_id)
