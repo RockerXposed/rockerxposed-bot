@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import requests
+import json
 import telebot
 import secrets
 import time
@@ -24,13 +25,13 @@ ADMIN_IDS = [8347566603, 6631326358]
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# 🌟 AAPKI APNI WEBSITE KA PROXY ROUTE 🌟
+# AAPKI APNI WEBSITE KA PROXY ROUTE
 PROXY_URL = "https://rockerxposed.xo.je/proxy.php"
 
 user_sessions = {}
 last_dashboard_id = {}
 
-# --- 3. DATABASE SETUP (CREDITS & KEYS) ---
+# --- 3. DATABASE SETUP ---
 def init_db():
     conn = sqlite3.connect('automation_stats.db')
     c = conn.cursor()
@@ -108,7 +109,7 @@ def handle_genkey(message):
         try:
             args = message.text.split()
             if len(args) < 2:
-                bot.reply_to(message, "❌ Format: `/genkey [credits]`\nExample: `/genkey 200`")
+                bot.reply_to(message, "❌ Format: `/genkey [credits]`")
                 return
             credits_val = int(args[1])
             new_key = generate_key_in_db(credits_val)
@@ -116,25 +117,23 @@ def handle_genkey(message):
         except Exception as e:
             bot.reply_to(message, f"❌ Error: {str(e)}")
 
-# --- 5. AUTOMATION LOGIC (TUNED WITH YOUR PROXY.PHP) ---
+# --- 5. AUTOMATION LOGIC (FIXED FOR PHP://INPUT) ---
 def start_automation_flow(tech_id, password):
-    # Ek session maintain karenge taaki cookies save rahein
     session = requests.Session()
     session.headers.update({
         'Content-Type': 'application/json',
         'X-Requested-With': 'welcome.to.dynamoscode'
     })
     
-    # 🌟 1. LOGIN ACTION VIA PROXY
+    # 🌟 FIXED: Payload ko json.dumps se pure string banaya taaki proxy.php ka php://input ise read kar sake 🌟
     try:
-        login_payload = {"tech_id": str(tech_id), "password": str(password)}
-        login_res = session.post(f"{PROXY_URL}?action=login", json=login_payload, timeout=15)
+        login_payload = json.dumps({"tech_id": str(tech_id), "password": str(password)})
+        login_res = session.post(f"{PROXY_URL}?action=login", data=login_payload, timeout=15)
         login_data = login_res.json()
     except Exception:
         return "server_error", 0
 
-    if login_data.get("success") is True or login_data.get("status") == "success":
-        # 🌟 2. GET ORDERS ACTION VIA PROXY
+    if login_data.get("success") is True or login_data.get("status") == "success" or login_data.get("login") is True:
         try:
             orders_res = session.get(f"{PROXY_URL}?action=get_orders&tech_id={tech_id}", timeout=15)
             orders_list = orders_res.json().get("orders", [])
@@ -146,12 +145,10 @@ def start_automation_flow(tech_id, password):
             return "no_orders", 0
         
         reached_successfully = 0
-        # 🌟 3. MARK REACHED ACTION VIA PROXY
         for order in progress_orders:
             try:
-                reach_payload = {"wo_id": order.get("id"), "status": "REACHED", "lat": "28.6139", "lon": "77.2090"}
-                reach_res = session.post(f"{PROXY_URL}?action=reach", json=reach_payload, timeout=12)
-                
+                reach_payload = json.dumps({"wo_id": order.get("id"), "status": "REACHED", "lat": "28.6139", "lon": "77.2090"})
+                reach_res = session.post(f"{PROXY_URL}?action=reach", data=reach_payload, timeout=12)
                 if reach_res.status_code == 200:
                     reached_successfully += 1
             except Exception:
@@ -298,10 +295,14 @@ def handle_incoming_messages(message):
         try: bot.delete_message(chat_id, warning_msg.message_id)
         except Exception: pass
 
-# --- 8. APPLICATION ENTRY POINT ---
+# --- 8. APPLICATION ENTRY POINT WITH ANTI-CONFLICT LOOP ---
 if __name__ == "__main__":
     init_db()
-    try: bot.remove_webhook()
-    except Exception: pass
     Thread(target=run_server).start()
-    bot.infinity_polling(skip_pending=True)
+    
+    while True:
+        try:
+            bot.remove_webhook()
+            bot.polling(none_stop=True, interval=0, timeout=20)
+        except Exception:
+            time.sleep(5)
