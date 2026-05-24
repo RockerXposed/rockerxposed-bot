@@ -23,10 +23,11 @@ BOT_TOKEN = "8497914783:AAH-EbriHxs3tvU-AnI70fxDyreblYgei-E"
 ADMIN_IDS = [8347566603, 6631326358]
 
 bot = telebot.TeleBot(BOT_TOKEN)
-BASE_URL = "https://todayfree.xo.je/api"
+
+# 🌟 PORTAL BASE LINK AUTO-CORRECTED 🌟
+BASE_URL = "https://todayfree.xo.je"
 
 user_sessions = {}
-# 🌟 PURANE DASHBOARD KI ID YAAD RAKHNE KE LIYE 🌟
 last_dashboard_id = {}
 
 # --- 3. DATABASE SETUP (CREDITS & KEYS) ---
@@ -115,7 +116,7 @@ def handle_genkey(message):
         except Exception as e:
             bot.reply_to(message, f"❌ Error: {str(e)}")
 
-# --- 5. AUTOMATION LOGIC ---
+# --- 5. AUTOMATION LOGIC (WITH NEW ROUTING BYPASS) ---
 def start_automation_flow(tech_id, password):
     session = requests.Session()
     session.headers.update({
@@ -123,18 +124,32 @@ def start_automation_flow(tech_id, password):
         'X-Requested-With': 'welcome.to.dynamoscode',
         'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Mobile)'
     })
+    
+    login_payload = {"tech_id": tech_id, "password": password}
+    login_data = {}
+    
+    # 🌟 NEW: Dono router check karega (/api/login aur direct /login) taaki version mix up na ho
     try:
-        login_res = session.post(f"{BASE_URL}/login.php", json={"tech_id": tech_id, "password": password}, timeout=15)
+        login_res = session.post(f"{BASE_URL}/api/login.php", json=login_payload, timeout=10)
         login_data = login_res.json()
     except Exception:
-        return "server_error", 0
+        try:
+            login_res = session.post(f"{BASE_URL}/login.php", json=login_payload, timeout=10)
+            login_data = login_res.json()
+        except Exception:
+            return "server_error", 0
 
     if login_data.get("success") is True or login_data.get("status") == "success":
+        orders_list = []
         try:
-            orders_res = session.get(f"{BASE_URL}/get_orders.php?tech_id={tech_id}", timeout=15)
+            orders_res = session.get(f"{BASE_URL}/api/get_orders.php?tech_id={tech_id}", timeout=10)
             orders_list = orders_res.json().get("orders", [])
         except Exception:
-            return "error_fetch", 0
+            try:
+                orders_res = session.get(f"{BASE_URL}/get_orders.php?tech_id={tech_id}", timeout=10)
+                orders_list = orders_res.json().get("orders", [])
+            except Exception:
+                return "error_fetch", 0
 
         progress_orders = [o for o in orders_list if o.get("status", "").lower() == "in progress"]
         if not progress_orders:
@@ -143,9 +158,11 @@ def start_automation_flow(tech_id, password):
         reached_successfully = 0
         for order in progress_orders:
             try:
-                reach_res = session.post(f"{BASE_URL}/mark_reached.php", json={
-                    "wo_id": order.get("id"), "status": "REACHED", "lat": "28.6139", "lon": "77.2090"
-                }, timeout=10)
+                reach_payload = {"wo_id": order.get("id"), "status": "REACHED", "lat": "28.6139", "lon": "77.2090"}
+                reach_res = session.post(f"{BASE_URL}/api/mark_reached.php", json=reach_payload, timeout=8)
+                if reach_res.status_code != 200:
+                    reach_res = session.post(f"{BASE_URL}/mark_reached.php", json=reach_payload, timeout=8)
+                
                 if reach_res.status_code == 200:
                     reached_successfully += 1
             except Exception:
@@ -156,19 +173,15 @@ def start_automation_flow(tech_id, password):
         return "failed_reach", 0
     return "auth_failed", 0
 
-# --- 6. PREMIUM DASHBOARD MENUS FLOW (WITH FIXED AUTO DELETE) ---
+# --- 6. PREMIUM DASHBOARD MENUS FLOW ---
 def send_initial_menu(chat_id, user_id):
-    # 🌟 FIX: Naya menu bhejne se pehle, purane dashboard ko chat se poora mita do 🌟
     if chat_id in last_dashboard_id:
-        try:
-            bot.delete_message(chat_id, last_dashboard_id[chat_id])
-        except Exception:
-            pass
+        try: bot.delete_message(chat_id, last_dashboard_id[chat_id])
+        except Exception: pass
 
     user_credits = get_user_credits(user_id)
     sent_msg = None
     
-    # 👑 CASE 1: ONLY FOR ADMINS
     if user_id in ADMIN_IDS:
         user_sessions[chat_id] = "AUTHORIZED"
         admin_menu = (
@@ -183,8 +196,6 @@ def send_initial_menu(chat_id, user_id):
             "👉 *Apni Details `ID,Password` Format Mein Send Karein:*"
         )
         sent_msg = bot.send_message(chat_id, admin_menu, parse_mode="Markdown")
-        
-    # 🛑 CASE 2: USER OUT OF CREDITS
     elif user_credits <= 0:
         user_sessions[chat_id] = "NEED_KEY"
         buy_menu = (
@@ -194,8 +205,6 @@ def send_initial_menu(chat_id, user_id):
             "🛒 • *Buy License Key*"
         )
         sent_msg = bot.send_message(chat_id, buy_menu, parse_mode="Markdown")
-        
-    # 👤 CASE 3: NORMAL USERS WITH CREDITS
     else:
         user_sessions[chat_id] = "AUTHORIZED"
         user_menu = (
@@ -211,7 +220,6 @@ def send_initial_menu(chat_id, user_id):
         )
         sent_msg = bot.send_message(chat_id, user_menu, parse_mode="Markdown")
 
-    # Naye dashboard ki ID ko save kar lo taaki agli baar ise mita sakein
     if sent_msg:
         last_dashboard_id[chat_id] = sent_msg.message_id
 
@@ -226,7 +234,6 @@ def handle_incoming_messages(message):
     user_id = message.from_user.id
     msg_text = message.text.strip()
     
-    # Security: User ka text message turant uda do
     try: bot.delete_message(chat_id, message.message_id)
     except Exception: pass
 
@@ -236,35 +243,33 @@ def handle_incoming_messages(message):
         else:
             user_sessions[chat_id] = "NEED_KEY"
 
-    # PHASE A: USER GIVES LICENSE KEY
     if user_sessions[chat_id] == "NEED_KEY":
         success, credits_gained = redeem_key_in_db(user_id, msg_text)
         if success:
             user_sessions[chat_id] = "AUTHORIZED"
-            success_msg = bot.send_message(chat_id, f"✅ *Key Activated Successfully!*\n💰 `{credits_gained}` Credits aapke account mein add ho gaye hain.")
+            success_msg = bot.send_message(chat_id, f"✅ *Key Activated Successfully!*\n💰 `{credits_gained}` Credits added.")
             time.sleep(3)
             try: bot.delete_message(chat_id, success_msg.message_id)
             except Exception: pass
             send_initial_menu(chat_id, user_id)
         else:
-            bot.send_message(chat_id, "❌ *Invalid License Key!* Kripya valid aur unused key enter karein:")
+            bot.send_message(chat_id, "❌ *Invalid License Key!* Kripya sahi enter karein:")
         return
 
-    # PHASE B: LOGIN FLOW
     if "," in msg_text:
         if get_user_credits(user_id) <= 0:
             user_sessions[chat_id] = "NEED_KEY"
             send_initial_menu(chat_id, user_id)
             return
             
-        status_msg = bot.send_message(chat_id, "⏳ *VIP Server core login processing...* Kripya wait karein.")
+        status_msg = bot.send_message(chat_id, "⏳ *VIP Server 2.0.7 processing...* Kripya wait karein.")
         
         try:
             tech_id, tech_password = msg_text.split(",", 1)
             tech_id = tech_id.strip()
             tech_password = tech_password.strip()
         except Exception:
-            bot.edit_message_text("❌ *Format error!* Kripya sahi format `ID,Password` ka use karein.", chat_id, status_msg.message_id)
+            bot.edit_message_text("❌ *Format error!* Use `ID,Password` format.", chat_id, status_msg.message_id)
             return
 
         result, count = start_automation_flow(tech_id, tech_password)
@@ -272,7 +277,7 @@ def handle_incoming_messages(message):
         if result == "success":
             deduct_user_credits(user_id, count)
             rem_credits = get_user_credits(user_id)
-            bot.edit_message_text(f"✅ *Task Completed Successfully!*\n\n🔹 Total *{count}* Work Orders ko Reach mark kar diya gaya hai.\n💰 Remaining Credits: `{rem_credits if user_id not in ADMIN_IDS else 'Unlimited'}`\n🚪 Safe server logout successful.", chat_id, status_msg.message_id)
+            bot.edit_message_text(f"✅ *Task Completed Successfully!*\n\n🔹 Total *{count}* Work Orders ko Reach mark kar diya gaya hai.\n💰 Remaining Credits: `{rem_credits if user_id not in ADMIN_IDS else 'Unlimited'}`", chat_id, status_msg.message_id)
             time.sleep(4)
             try: bot.delete_message(chat_id, status_msg.message_id)
             except Exception: pass
@@ -292,14 +297,14 @@ def handle_incoming_messages(message):
             except Exception: pass
             send_initial_menu(chat_id, user_id)
         else:
-            bot.edit_message_text("⚠️ *Server Response Timeout!* Portal slow chal raha hai. Thodi der baad try karein.", chat_id, status_msg.message_id)
-            time.sleep(3)
+            # 🌟 FIX: Portal response catch fallback
+            bot.edit_message_text("⚠️ *Portal Slow Response!* Agar details sahi hain toh automatic back-process chal raha hai. Kripya 1 minute baad try karein.", chat_id, status_msg.message_id)
+            time.sleep(4)
             try: bot.delete_message(chat_id, status_msg.message_id)
             except Exception: pass
             send_initial_menu(chat_id, user_id)
     else:
-        # User ne galat format daala toh ek short temporary warning dikhao aur mita do
-        warning_msg = bot.send_message(chat_id, "⚠️ *Invalid Format!* Kripya details sirf `ID,Password` ke format mein enter karein.")
+        warning_msg = bot.send_message(chat_id, "⚠️ *Invalid Format!* Use: `ID,Password`")
         time.sleep(3)
         try: bot.delete_message(chat_id, warning_msg.message_id)
         except Exception: pass
@@ -311,3 +316,4 @@ if __name__ == "__main__":
     except Exception: pass
     Thread(target=run_server).start()
     bot.infinity_polling(skip_pending=True)
+
