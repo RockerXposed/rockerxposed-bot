@@ -5,46 +5,95 @@ import json
 import telebot
 import secrets
 import time
-from flask import Flask
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 from threading import Thread
 
-# --- 1. RENDER PORT TIMEOUT BYPASS (FLASK SERVER) ---
+# --- 1. CLOUD WEB ENGINE SERVER WITH CORS ---
 app = Flask('')
+CORS(app)
+
+# Session tracking object to maintain cookies across web calls
+session_pool = {}
 
 @app.route('/')
 def home():
-    return "<h1>ROCKER XPOSED CUSTOM PROXY VIP SERVER IS ACTIVE</h1>"
+    return "<h1>ROCKER XPOSED API CONTROLLER ENGINE IS ACTIVE</h1>"
+
+@app.route('/api/web_login', methods=['POST'])
+def web_login():
+    try:
+        data = request.json
+        tech_id = data.get("tech_id")
+        password = data.get("password")
+        
+        session = requests.Session()
+        session.headers.update({'Content-Type': 'application/json', 'X-Requested-With': 'welcome.to.dynamoscode'})
+        
+        login_payload = {"tech_id": str(tech_id), "password": str(password)}
+        res = session.post("https://todayfree.xo.je/api/login.php", json=login_payload, timeout=12)
+        res_data = res.json()
+        
+        if res_data.get("success") is True or res_data.get("status") == "success":
+            session_pool[str(tech_id)] = session
+            
+        return jsonify(res_data)
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/web_orders', methods=['GET'])
+def web_orders():
+    try:
+        tech_id = request.args.get("tech_id")
+        session = session_pool.get(str(tech_id), requests.Session())
+        session.headers.update({'Content-Type': 'application/json', 'X-Requested-With': 'welcome.to.dynamoscode'})
+        
+        res = session.get(f"https://todayfree.xo.je/api/get_orders.php?tech_id={tech_id}", timeout=12)
+        return jsonify(res.json())
+    except Exception as e:
+        return jsonify({"orders": []}), 500
+
+@app.route('/api/web_reach', methods=['POST'])
+def web_reach():
+    try:
+        data = request.json
+        tech_id = data.get("tech_id")
+        
+        session = session_pool.get(str(tech_id), requests.Session())
+        session.headers.update({'Content-Type': 'application/json', 'X-Requested-With': 'welcome.to.dynamoscode'})
+        
+        reach_payload = {
+            "wo_id": data.get("wo_id"),
+            "customer": "Unknown Customer",
+            "address": "N/A"
+        }
+        res = session.post("https://todayfree.xo.je/api/mark_reached.php", json=reach_payload, timeout=12)
+        if res.status_code == 200:
+            return jsonify({"success": True})
+        return jsonify({"success": False}), 400
+    except Exception:
+        return jsonify({"success": False}), 500
 
 def run_server():
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
 
-# --- 2. BOT CONFIGURATION ---
+# --- 2. TELEGRAM BOT INITIALIZATION ---
 BOT_TOKEN = "8497914783:AAH-EbriHxs3tvU-AnI70fxDyreblYgei-E"
 ADMIN_IDS = [8347566603, 6631326358]
-
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# AAPKI APNI WEBSITE KA PROXY ROUTE
-PROXY_URL = "https://rockerxposed.xo.je/proxy.php"
-
 user_sessions = {}
-last_dashboard_id = {}
 
-# --- 3. DATABASE SETUP ---
 def init_db():
     conn = sqlite3.connect('automation_stats.db')
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS user_credits 
-                 (user_id INTEGER PRIMARY KEY, credits INTEGER)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS keys_pool 
-                 (key_code TEXT PRIMARY KEY, credits INTEGER, status TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS user_credits (user_id INTEGER PRIMARY KEY, credits INTEGER)''')
     conn.commit()
     conn.close()
 
 def get_user_credits(user_id):
-    if user_id in ADMIN_IDS:
-        return 999999
+    if user_id in ADMIN_IDS: return 999999
     conn = sqlite3.connect('automation_stats.db')
     c = conn.cursor()
     c.execute("SELECT credits FROM user_credits WHERE user_id = ?", (user_id,))
@@ -52,22 +101,8 @@ def get_user_credits(user_id):
     conn.close()
     return row[0] if row else 0
 
-def add_user_credits(user_id, credits_to_add):
-    conn = sqlite3.connect('automation_stats.db')
-    c = conn.cursor()
-    c.execute("SELECT credits FROM user_credits WHERE user_id = ?", (user_id,))
-    row = c.fetchone()
-    if row:
-        new_credits = row[0] + credits_to_add
-        c.execute("UPDATE user_credits SET credits = ? WHERE user_id = ?", (new_credits, user_id))
-    else:
-        c.execute("INSERT INTO user_credits (user_id, credits) VALUES (?, ?)", (user_id, credits_to_add))
-    conn.commit()
-    conn.close()
-
 def deduct_user_credits(user_id, credits_to_deduct):
-    if user_id in ADMIN_IDS:
-        return
+    if user_id in ADMIN_IDS: return
     conn = sqlite3.connect('automation_stats.db')
     c = conn.cursor()
     c.execute("SELECT credits FROM user_credits WHERE user_id = ?", (user_id,))
@@ -78,228 +113,65 @@ def deduct_user_credits(user_id, credits_to_deduct):
     conn.commit()
     conn.close()
 
-def generate_key_in_db(credits_val):
-    key_code = f"RX-{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}"
-    conn = sqlite3.connect('automation_stats.db')
-    c = conn.cursor()
-    c.execute("INSERT INTO keys_pool (key_code, credits, status) VALUES (?, ?, 'UNUSED')", (key_code, credits_val))
-    conn.commit()
-    conn.close()
-    return key_code
-
-def redeem_key_in_db(user_id, key_code):
-    conn = sqlite3.connect('automation_stats.db')
-    c = conn.cursor()
-    c.execute("SELECT credits FROM keys_pool WHERE key_code = ? AND status = 'UNUSED'", (key_code,))
-    row = c.fetchone()
-    if row:
-        credits_val = row[0]
-        c.execute("UPDATE keys_pool SET status = 'USED' WHERE key_code = ?", (key_code,))
-        conn.commit()
-        conn.close()
-        add_user_credits(user_id, credits_val)
-        return True, credits_val
-    conn.close()
-    return False, 0
-
-# --- 4. ADMIN SUITE ---
-@bot.message_handler(commands=['genkey'])
-def handle_genkey(message):
-    if message.from_user.id in ADMIN_IDS:
-        try:
-            args = message.text.split()
-            if len(args) < 2:
-                bot.reply_to(message, "❌ Format: `/genkey [credits]`")
-                return
-            credits_val = int(args[1])
-            new_key = generate_key_in_db(credits_val)
-            bot.reply_to(message, f"🔑 *KEY GENERATED:* `{new_key}`\n💰 *Credits:* {credits_val} Reach", parse_mode="Markdown")
-        except Exception as e:
-            bot.reply_to(message, f"❌ Error: {str(e)}")
-
-# --- 5. AUTOMATION LOGIC (FIXED FOR PHP://INPUT) ---
+# --- 3. BOT AUTOMATION LOGIC ---
 def start_automation_flow(tech_id, password):
     session = requests.Session()
-    session.headers.update({
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'welcome.to.dynamoscode'
-    })
-    
-    # 🌟 FIXED: Payload ko json.dumps se pure string banaya taaki proxy.php ka php://input ise read kar sake 🌟
+    session.headers.update({'Content-Type': 'application/json', 'X-Requested-With': 'welcome.to.dynamoscode'})
     try:
-        login_payload = json.dumps({"tech_id": str(tech_id), "password": str(password)})
-        login_res = session.post(f"{PROXY_URL}?action=login", data=login_payload, timeout=15)
+        login_payload = {"tech_id": str(tech_id), "password": str(password)}
+        login_res = session.post("https://todayfree.xo.je/api/login.php", json=login_payload, timeout=12)
         login_data = login_res.json()
+        
+        if login_data.get("success") is True or login_data.get("status") == "success":
+            orders_res = session.get(f"https://todayfree.xo.je/api/get_orders.php?tech_id={tech_id}", timeout=12)
+            orders_list = orders_res.json().get("orders", [])
+            progress_orders = [o for o in orders_list if str(o.get("status", "")).lower() == "in progress"]
+            
+            if not progress_orders: return "no_orders", 0
+            
+            reached_successfully = 0
+            for order in progress_orders:
+                reach_payload = {"wo_id": order.get("id"), "customer": "Unknown Customer", "address": "N/A"}
+                reach_res = session.post("https://todayfree.xo.je/api/mark_reached.php", json=reach_payload, timeout=10)
+                if reach_res.status_code == 200: reached_successfully += 1
+            
+            if reached_successfully > 0: return "success", reached_successfully
+            return "failed_reach", 0
+        return "auth_failed", 0
     except Exception:
         return "server_error", 0
 
-    if login_data.get("success") is True or login_data.get("status") == "success" or login_data.get("login") is True:
-        try:
-            orders_res = session.get(f"{PROXY_URL}?action=get_orders&tech_id={tech_id}", timeout=15)
-            orders_list = orders_res.json().get("orders", [])
-        except Exception:
-            return "error_fetch", 0
-
-        progress_orders = [o for o in orders_list if str(o.get("status", "")).lower() == "in progress"]
-        if not progress_orders:
-            return "no_orders", 0
-        
-        reached_successfully = 0
-        for order in progress_orders:
-            try:
-                reach_payload = json.dumps({"wo_id": order.get("id"), "status": "REACHED", "lat": "28.6139", "lon": "77.2090"})
-                reach_res = session.post(f"{PROXY_URL}?action=reach", data=reach_payload, timeout=12)
-                if reach_res.status_code == 200:
-                    reached_successfully += 1
-            except Exception:
-                continue
-        
-        if reached_successfully > 0:
-            return "success", reached_successfully
-        return "failed_reach", 0
-    return "auth_failed", 0
-
-# --- 6. PREMIUM DASHBOARD MENUS FLOW ---
-def send_initial_menu(chat_id, user_id):
-    if chat_id in last_dashboard_id:
-        try: bot.delete_message(chat_id, last_dashboard_id[chat_id])
-        except Exception: pass
-
-    user_credits = get_user_credits(user_id)
-    sent_msg = None
-    
-    if user_id in ADMIN_IDS:
-        user_sessions[chat_id] = "AUTHORIZED"
-        admin_menu = (
-            "🚀 *Welcome To Rocker Xposed* 👑\n"
-            "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n"
-            "⚡ • *Fast Reach Service.*\n"
-            "🔓 • *Without Otp Setup.*\n"
-            "📍 • *Google Map Error Fix.*\n"
-            "🚪 • *Auto Logout.*\n"
-            "💎 • *Credit:* `Unlimited`\n"
-            "📝 • *I'd & Password:* `{06##,Pa##}`\n\n"
-            "👉 *Apni Details `ID,Password` Format Mein Send Karein:*"
-        )
-        sent_msg = bot.send_message(chat_id, admin_menu, parse_mode="Markdown")
-    elif user_credits <= 0:
-        user_sessions[chat_id] = "NEED_KEY"
-        buy_menu = (
-            "👋 *Welcome To Rocker Xposed* 🔥\n\n"
-            "❌ Aapke paas is bot ko use karne ke liye *0 Credits* bache hain.\n\n"
-            "🔑 • *Enter License Key* \n"
-            "🛒 • *Buy License Key*"
-        )
-        sent_msg = bot.send_message(chat_id, buy_menu, parse_mode="Markdown")
-    else:
-        user_sessions[chat_id] = "AUTHORIZED"
-        user_menu = (
-            "🚀 *Welcome To Rocker Xposed* 👋\n"
-            "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n"
-            "⚡ • *Fast Reach Service.*\n"
-            "🔓 • *Without Otp Setup.*\n"
-            "📍 • *Google Map Error Fix.*\n"
-            "🚪 • *Auto Logout.*\n"
-            f"💰 • *Credit:* `{user_credits}`\n"
-            "📝 • *I'd & Password:* `{06##,Pa##}`\n\n"
-            "👉 *Apni Details `ID,Password` Format Mein Send Karein:*"
-        )
-        sent_msg = bot.send_message(chat_id, user_menu, parse_mode="Markdown")
-
-    if sent_msg:
-        last_dashboard_id[chat_id] = sent_msg.message_id
-
 @bot.message_handler(commands=['start', 'help'])
 def start_cmd(message):
-    send_initial_menu(message.chat.id, message.from_user.id)
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+    user_credits = get_user_credits(user_id)
+    bot.send_message(chat_id, f"🚀 *Welcome To Rocker Xposed Bot* 👋\n💰 *Credits:* `{user_credits}`\n\n👉 *Details ID,Password Format Mein Send Karein:*", parse_mode="Markdown")
 
-# --- 7. MAIN CHAT ACTIONS & AUTO CLEAR ---
 @bot.message_handler(func=lambda message: True)
 def handle_incoming_messages(message):
     chat_id = message.chat.id
     user_id = message.from_user.id
     msg_text = message.text.strip()
     
-    try: bot.delete_message(chat_id, message.message_id)
-    except Exception: pass
-
-    if chat_id not in user_sessions:
-        if get_user_credits(user_id) > 0 or user_id in ADMIN_IDS:
-            user_sessions[chat_id] = "AUTHORIZED"
-        else:
-            user_sessions[chat_id] = "NEED_KEY"
-
-    if user_sessions[chat_id] == "NEED_KEY":
-        success, credits_gained = redeem_key_in_db(user_id, msg_text)
-        if success:
-            user_sessions[chat_id] = "AUTHORIZED"
-            success_msg = bot.send_message(chat_id, f"✅ *Key Activated Successfully!*\n💰 `{credits_gained}` Credits added.")
-            time.sleep(2)
-            try: bot.delete_message(chat_id, success_msg.message_id)
-            except Exception: pass
-            send_initial_menu(chat_id, user_id)
-        else:
-            bot.send_message(chat_id, "❌ *Invalid License Key!* Kripya sahi enter karein:")
-        return
-
     if "," in msg_text:
-        if get_user_credits(user_id) <= 0:
-            user_sessions[chat_id] = "NEED_KEY"
-            send_initial_menu(chat_id, user_id)
-            return
-            
-        status_msg = bot.send_message(chat_id, "⏳ *VIP Proxy Server core processing...* Kripya wait karein.")
-        
+        status_msg = bot.send_message(chat_id, "⏳ *VIP Core Processing...*")
         try:
             tech_id, tech_password = msg_text.split(",", 1)
-            tech_id = tech_id.strip()
-            tech_password = tech_password.strip()
+            result, count = start_automation_flow(tech_id.strip(), tech_password.strip())
+            if result == "success":
+                deduct_user_credits(user_id, count)
+                bot.edit_message_text(f"✅ *Task Completed!*\n🔹 Total *{count}* Orders marked Reached.", chat_id, status_msg.message_id, parse_mode="Markdown")
+            elif result == "no_orders":
+                bot.edit_message_text("ℹ️ *Account mein koi 'In Progress' order nahi mila.*", chat_id, status_msg.message_id, parse_mode="Markdown")
+            else:
+                bot.edit_message_text("❌ *Verification Failed!*", chat_id, status_msg.message_id)
         except Exception:
-            bot.edit_message_text("❌ *Format error!* Use `ID,Password` format.", chat_id, status_msg.message_id)
-            return
+            bot.edit_message_text("❌ *Format error!* Use `ID,Password`", chat_id, status_msg.message_id)
 
-        result, count = start_automation_flow(tech_id, tech_password)
-        
-        if result == "success":
-            deduct_user_credits(user_id, count)
-            rem_credits = get_user_credits(user_id)
-            final_text = f"✅ *Task Completed Successfully!*\n\n🔹 Total *{count}* Work Orders ko Reach mark kar diya gaya hai.\n💰 Remaining Credits: `Unlimited`" if user_id in ADMIN_IDS else f"✅ *Task Completed Successfully!*\n\n🔹 Total *{count}* Work Orders ko Reach mark kar diya gaya hai.\n💰 Remaining Credits: `{rem_credits}`"
-            bot.edit_message_text(final_text, chat_id, status_msg.message_id, parse_mode="Markdown")
-            time.sleep(4)
-            try: bot.delete_message(chat_id, status_msg.message_id)
-            except Exception: pass
-            send_initial_menu(chat_id, user_id)
-            
-        elif result == "no_orders":
-            bot.edit_message_text("ℹ️ *Aapke account mein koi bhi IN PROGRESS work order nahi mila.*", chat_id, status_msg.message_id, parse_mode="Markdown")
-            time.sleep(4)
-            try: bot.delete_message(chat_id, status_msg.message_id)
-            except Exception: pass
-            send_initial_menu(chat_id, user_id)
-            
-        elif result == "auth_failed":
-            bot.edit_message_text("❌ *Portal Auth Failed!* Kripya sahi Password check karein.", chat_id, status_msg.message_id)
-            time.sleep(3)
-            try: bot.delete_message(chat_id, status_msg.message_id)
-            except Exception: pass
-            send_initial_menu(chat_id, user_id)
-        else:
-            bot.edit_message_text("❌ *Proxy API Connection Failed!* Kripya check karein ki portal busy hai ya details galat hain.", chat_id, status_msg.message_id)
-            time.sleep(4)
-            try: bot.delete_message(chat_id, status_msg.message_id)
-            except Exception: pass
-            send_initial_menu(chat_id, user_id)
-    else:
-        warning_msg = bot.send_message(chat_id, "⚠️ *Invalid Format!* Use: `ID,Password`")
-        time.sleep(3)
-        try: bot.delete_message(chat_id, warning_msg.message_id)
-        except Exception: pass
-
-# --- 8. APPLICATION ENTRY POINT WITH ANTI-CONFLICT LOOP ---
 if __name__ == "__main__":
     init_db()
     Thread(target=run_server).start()
-    
     while True:
         try:
             bot.remove_webhook()
