@@ -18,7 +18,7 @@ session_pool = {}
 
 @app.route('/')
 def home():
-    return "<h1>ROCKER XPOSED MULTI-ID FORM CORE IS ACTIVE</h1>"
+    return "<h1>ROCKER XPOSED ANTI-BOT CORE IS ACTIVE</h1>"
 
 @app.route('/api/web_login', methods=['POST'])
 def web_login():
@@ -28,14 +28,20 @@ def web_login():
         password = str(data.get("password", "")).strip()
         
         session = requests.Session()
-        # Log data ke exact rules ke mutabik headers mapping
+        
+        # 🌟 EXAPCT HEADERS & SYSTEM CONFIG FROM REQABLE LOG 🌟
         session.headers.update({
             'Content-Type': 'application/x-www-form-urlencoded', 
             'X-Requested-With': 'welcome.to.dynamoscode',
             'User-Agent': 'Mozilla/5.0 (Linux; Android; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36'
         })
         
-        # 🌟 PORTAL FORM DATA FORMAT MAANG RAHA HAI JSON NAHI 🌟
+        # 🔐 INJECTING THE REQABLE SECURITY COOKIES 🔐
+        jar = requests.cookies.RequestsCookieJar()
+        jar.set('__test', '889f999ca1bb6aca47b93a5181ffbc58', domain='todayfree.xo.je', path='/')
+        session.cookies = jar
+        
+        # Standard Form payload
         login_payload = {
             "tech_id": tech_id, 
             "password": password
@@ -76,7 +82,6 @@ def web_reach():
         if not session:
             return jsonify({"success": False, "message": "No active session found"}), 401
             
-        # Form submission data format rules for bypass action
         reach_payload = {
             "wo_id": wo_id,
             "customer": "Unknown Customer",
@@ -134,6 +139,12 @@ def start_automation_flow(tech_id, password):
         'X-Requested-With': 'welcome.to.dynamoscode',
         'User-Agent': 'Mozilla/5.0 (Linux; Android; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36'
     })
+    
+    # Bot automation flow also requires the protection bypass cookie
+    jar = requests.cookies.RequestsCookieJar()
+    jar.set('__test', '889f999ca1bb6aca47b93a5181ffbc58', domain='todayfree.xo.je', path='/')
+    session.cookies = jar
+
     try:
         login_payload = {"tech_id": str(tech_id).strip(), "password": str(password).strip()}
         login_res = session.post("https://todayfree.xo.je/api/login.php", data=login_payload, timeout=12)
