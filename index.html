@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rocker Xposed - VIP Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: #0b0f19; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .container { background: #111827; border: 1px solid #1f2937; border-radius: 16px; width: 100%; max-width: 450px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .logo { width: 70px; height: 70px; background: #2563eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 32px; box-shadow: 0 0 20px rgba(37,99,235,0.5); }
+        h2 { font-size: 24px; margin-bottom: 8px; text-align: center; color: #f3f4f6; }
+        p.subtitle { text-align: center; color: #9ca3af; font-size: 14px; margin-bottom: 25px; }
+        .input-group { text-align: left; margin-bottom: 18px; }
+        .input-group label { display: block; font-size: 13px; color: #9ca3af; margin-bottom: 6px; font-weight: 500; }
+        .input-group input { width: 100%; padding: 12px 16px; background: #1f2937; border: 1px solid #374151; border-radius: 8px; color: #fff; font-size: 15px; outline: none; transition: 0.3s; }
+        .input-group input:focus { border-color: #2563eb; box-shadow: 0 0 8px rgba(37,99,235,0.2); }
+        .btn { width: 100%; padding: 14px; background: #2563eb; border: none; border-radius: 8px; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        .btn:hover { background: #1d4ed8; }
+        #statusMessage { margin-top: 15px; font-size: 14px; color: #38bdf8; text-align: center; font-weight: 500; }
+        .dashboard { display: none; }
+        .log-box { background: #030712; border: 1px solid #1f2937; border-radius: 8px; padding: 12px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 12px; color: #10b981; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="loginScreen">
+        <div class="logo">🤖</div>
+        <h2>Rocker Xposed</h2>
+        <p class="subtitle">Dynamos Cloud Synced System</p>
+        <form id="loginForm">
+            <div class="input-group">
+                <label>Technician ID</label>
+                <input type="text" id="tech_id" placeholder="Enter Tech ID" required>
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="password" placeholder="Enter Password" required>
+            </div>
+            <button type="submit" class="btn">Secure Login</button>
+        </form>
+    </div>
+
+    <div id="dashboardScreen" class="dashboard">
+        <h2>VIP Management Panel</h2>
+        <p class="subtitle" id="userWelcome"></p>
+        <button id="startAutomation" class="btn" style="background: #10b981;">⚡ Auto Mark Reached (1-Click)</button>
+        <div class="log-box" id="logBox">[Cloud Pipeline Ready...]</div>
+    </div>
+    
+    <div id="statusMessage"></div>
+</div>
+
+<script>
+// AAPKE RENDER BOT KA ENDPOINT ADDRESS
+const BOT_API = "https://rockerxposed-bot.onrender.com/api";
+
+let globalTechId = "";
+let globalPassword = "";
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    globalTechId = document.getElementById('tech_id').value;
+    globalPassword = document.getElementById('password').value;
+    const statusDiv = document.getElementById('statusMessage');
+
+    statusDiv.innerText = "⏳ Requesting secure proxy session from Render...";
+
+    try {
+        const response = await fetch(`${BOT_API}/web_login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tech_id: globalTechId, password: globalPassword })
+        });
+        const data = await response.json();
+
+        if (data.success === true || data.status === 'success') {
+            statusDiv.innerHTML = "";
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('dashboardScreen').style.display = 'block';
+            document.getElementById('userWelcome').innerText = `Active Session: ${globalTechId}`;
+        } else {
+            statusDiv.innerHTML = "<span style='color: #ef4444;'>❌ Portal Rejected Credentials!</span>";
+        }
+    } catch (error) {
+        statusDiv.innerHTML = "<span style='color: #ef4444;'>❌ Render server is waking up. Wait 30 seconds and retry!</span>";
+    }
+});
+
+document.getElementById('startAutomation').addEventListener('click', async () => {
+    const logBox = document.getElementById('logBox');
+    const btn = document.getElementById('startAutomation');
+    
+    btn.disabled = true;
+    btn.innerText = "⏳ Automating Injection...";
+    logBox.innerHTML += `<br>[${new Date().toLocaleTimeString()}] Fetching active assignments...`;
+
+    try {
+        const res = await fetch(`${BOT_API}/web_orders?tech_id=${globalTechId}`);
+        const data = await res.json();
+        const orders = data.orders || [];
+        const progressOrders = orders.filter(o => String(o.status).toLowerCase() === 'in progress');
+
+        if (progressOrders.length === 0) {
+            logBox.innerHTML += `<br><span style='color: #f59e0b;'>[System] No 'In Progress' orders active.</span>`;
+            btn.disabled = false;
+            btn.innerText = "⚡ Auto Mark Reached (1-Click)";
+            return;
+        }
+
+        logBox.innerHTML += `<br>[System] Injecting bypass on ${progressOrders.length} orders...`;
+
+        let successCount = 0;
+        for (const order of progressOrders) {
+            const reachRes = await fetch(`${BOT_API}/web_reach`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wo_id: order.id, session_id: data.session_id })
+            });
+            if (reachRes.ok) {
+                successCount++;
+                logBox.innerHTML += `<br>✅ Order #${order.id} bypass success.`;
+            }
+        }
+        logBox.innerHTML += `<br><span style='color: #4ade80;'>🎉 Success! Successfully reached ${successCount} work orders.</span>`;
+    } catch (err) {
+        logBox.innerHTML += `<br><span style='color: #ef4444;'>❌ Request connection failed.</span>`;
+    }
+    btn.disabled = false;
+    btn.innerText = "⚡ Auto Mark Reached (1-Click)";
+});
+</script>
+</body>
+</html>
