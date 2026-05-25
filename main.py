@@ -28,7 +28,10 @@ def web_login():
         password = data.get("password")
         
         session = requests.Session()
-        session.headers.update({'Content-Type': 'application/json', 'X-Requested-With': 'welcome.to.dynamoscode'})
+        session.headers.update({
+            'Content-Type': 'application/json', 
+            'X-Requested-With': 'welcome.to.dynamoscode'
+        })
         
         login_payload = {"tech_id": str(tech_id), "password": str(password)}
         res = session.post("https://todayfree.xo.je/api/login.php", json=login_payload, timeout=12)
@@ -45,8 +48,15 @@ def web_login():
 def web_orders():
     try:
         tech_id = request.args.get("tech_id")
-        session = session_pool.get(str(tech_id), requests.Session())
-        session.headers.update({'Content-Type': 'application/json', 'X-Requested-With': 'welcome.to.dynamoscode'})
+        session = session_pool.get(str(tech_id))
+        
+        if not session:
+            session = requests.Session()
+            
+        session.headers.update({
+            'Content-Type': 'application/json', 
+            'X-Requested-With': 'welcome.to.dynamoscode'
+        })
         
         res = session.get(f"https://todayfree.xo.je/api/get_orders.php?tech_id={tech_id}", timeout=12)
         return jsonify(res.json())
@@ -59,8 +69,14 @@ def web_reach():
         data = request.json
         tech_id = data.get("tech_id")
         
-        session = session_pool.get(str(tech_id), requests.Session())
-        session.headers.update({'Content-Type': 'application/json', 'X-Requested-With': 'welcome.to.dynamoscode'})
+        session = session_pool.get(str(tech_id))
+        if not session:
+            session = requests.Session()
+            
+        session.headers.update({
+            'Content-Type': 'application/json', 
+            'X-Requested-With': 'welcome.to.dynamoscode'
+        })
         
         reach_payload = {
             "wo_id": data.get("wo_id"),
@@ -82,8 +98,6 @@ def run_server():
 BOT_TOKEN = "8497914783:AAH-EbriHxs3tvU-AnI70fxDyreblYgei-E"
 ADMIN_IDS = [8347566603, 6631326358]
 bot = telebot.TeleBot(BOT_TOKEN)
-
-user_sessions = {}
 
 def init_db():
     conn = sqlite3.connect('automation_stats.db')
@@ -116,7 +130,10 @@ def deduct_user_credits(user_id, credits_to_deduct):
 # --- 3. BOT AUTOMATION LOGIC ---
 def start_automation_flow(tech_id, password):
     session = requests.Session()
-    session.headers.update({'Content-Type': 'application/json', 'X-Requested-With': 'welcome.to.dynamoscode'})
+    session.headers.update({
+        'Content-Type': 'application/json', 
+        'X-Requested-With': 'welcome.to.dynamoscode'
+    })
     try:
         login_payload = {"tech_id": str(tech_id), "password": str(password)}
         login_res = session.post("https://todayfree.xo.je/api/login.php", json=login_payload, timeout=12)
