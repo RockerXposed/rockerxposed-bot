@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rocker Xposed - VIP Portal</title>
+    <title>Rocker Xposed - VIP Core Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -13,10 +13,10 @@
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
         .glass-panel {
-            background: rgba(30, 41, 59, 0.7);
+            background: rgba(30, 41, 59, 0.75);
             backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
         }
     </style>
 </head>
@@ -90,7 +90,6 @@
     </div>
 
     <script>
-        // 🌟 APNE RENDER SERVER KA SEEDHA LIVE BACKEND URL 🌟
         const BACKEND_URL = "https://rockerxposed-bot.onrender.com";
 
         function showStatus(text, type) {
@@ -109,7 +108,6 @@
         }
 
         async function triggerSecureAuth() {
-            // Dynamic form values capture
             const inputTechId = document.getElementById("tech_id").value.trim();
             const inputPassword = document.getElementById("password").value.trim();
 
@@ -222,7 +220,6 @@
             document.getElementById("password").value = "";
         }
 
-        // Auto login session reload check
         window.onload = function() {
             const savedId = localStorage.getItem("active_tech_id");
             if (savedId) {
