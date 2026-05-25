@@ -13,32 +13,35 @@ from threading import Thread
 app = Flask('')
 CORS(app)
 
-# Session tracking object to maintain cookies across web calls
+# 🌟 HAR ID KE LIYE ALAG SESSION TRACK KARNE KE LIYE POOL 🌟
 session_pool = {}
 
 @app.route('/')
 def home():
-    return "<h1>ROCKER XPOSED API CONTROLLER ENGINE IS ACTIVE</h1>"
+    return "<h1>ROCKER XPOSED MULTI-ID ENGINE IS RUNNING SMOOTHLY</h1>"
 
 @app.route('/api/web_login', methods=['POST'])
 def web_login():
     try:
         data = request.json
-        tech_id = data.get("tech_id")
-        password = data.get("password")
+        tech_id = str(data.get("tech_id", "")).strip()
+        password = str(data.get("password", "")).strip()
         
+        # Har naye technician ke liye ek fresh session banana zaroori hai
         session = requests.Session()
         session.headers.update({
             'Content-Type': 'application/json', 
-            'X-Requested-With': 'welcome.to.dynamoscode'
+            'X-Requested-With': 'welcome.to.dynamoscode',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36'
         })
         
-        login_payload = {"tech_id": str(tech_id), "password": str(password)}
+        login_payload = {"tech_id": tech_id, "password": password}
         res = session.post("https://todayfree.xo.je/api/login.php", json=login_payload, timeout=12)
         res_data = res.json()
         
+        # Agar login portal par success hota hai, toh is session ko save rakhna hai
         if res_data.get("success") is True or res_data.get("status") == "success":
-            session_pool[str(tech_id)] = session
+            session_pool[tech_id] = session
             
         return jsonify(res_data)
     except Exception as e:
@@ -47,17 +50,12 @@ def web_login():
 @app.route('/api/web_orders', methods=['GET'])
 def web_orders():
     try:
-        tech_id = request.args.get("tech_id")
-        session = session_pool.get(str(tech_id))
+        tech_id = str(request.args.get("tech_id", "")).strip()
+        session = session_pool.get(tech_id)
         
         if not session:
-            session = requests.Session()
+            return jsonify({"success": False, "orders": [], "message": "Session expired, please re-login."})
             
-        session.headers.update({
-            'Content-Type': 'application/json', 
-            'X-Requested-With': 'welcome.to.dynamoscode'
-        })
-        
         res = session.get(f"https://todayfree.xo.je/api/get_orders.php?tech_id={tech_id}", timeout=12)
         return jsonify(res.json())
     except Exception as e:
@@ -67,19 +65,15 @@ def web_orders():
 def web_reach():
     try:
         data = request.json
-        tech_id = data.get("tech_id")
+        tech_id = str(data.get("tech_id", "")).strip()
+        wo_id = data.get("wo_id")
         
-        session = session_pool.get(str(tech_id))
+        session = session_pool.get(tech_id)
         if not session:
-            session = requests.Session()
+            return jsonify({"success": False, "message": "No active session found"}), 401
             
-        session.headers.update({
-            'Content-Type': 'application/json', 
-            'X-Requested-With': 'welcome.to.dynamoscode'
-        })
-        
         reach_payload = {
-            "wo_id": data.get("wo_id"),
+            "wo_id": str(wo_id),
             "customer": "Unknown Customer",
             "address": "N/A"
         }
@@ -132,10 +126,11 @@ def start_automation_flow(tech_id, password):
     session = requests.Session()
     session.headers.update({
         'Content-Type': 'application/json', 
-        'X-Requested-With': 'welcome.to.dynamoscode'
+        'X-Requested-With': 'welcome.to.dynamoscode',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36'
     })
     try:
-        login_payload = {"tech_id": str(tech_id), "password": str(password)}
+        login_payload = {"tech_id": str(tech_id).strip(), "password": str(password).strip()}
         login_res = session.post("https://todayfree.xo.je/api/login.php", json=login_payload, timeout=12)
         login_data = login_res.json()
         
