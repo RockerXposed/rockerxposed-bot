@@ -13,12 +13,12 @@ from threading import Thread
 app = Flask('')
 CORS(app)
 
-# 🌟 HAR ID KE LIYE ALAG SESSION TRACK KARNE KE LIYE POOL 🌟
+# Session tracking pool for multi-ID support
 session_pool = {}
 
 @app.route('/')
 def home():
-    return "<h1>ROCKER XPOSED MULTI-ID ENGINE IS RUNNING SMOOTHLY</h1>"
+    return "<h1>ROCKER XPOSED MULTI-ID FORM CORE IS ACTIVE</h1>"
 
 @app.route('/api/web_login', methods=['POST'])
 def web_login():
@@ -27,19 +27,23 @@ def web_login():
         tech_id = str(data.get("tech_id", "")).strip()
         password = str(data.get("password", "")).strip()
         
-        # Har naye technician ke liye ek fresh session banana zaroori hai
         session = requests.Session()
+        # Log data ke exact rules ke mutabik headers mapping
         session.headers.update({
-            'Content-Type': 'application/json', 
+            'Content-Type': 'application/x-www-form-urlencoded', 
             'X-Requested-With': 'welcome.to.dynamoscode',
             'User-Agent': 'Mozilla/5.0 (Linux; Android; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36'
         })
         
-        login_payload = {"tech_id": tech_id, "password": password}
-        res = session.post("https://todayfree.xo.je/api/login.php", json=login_payload, timeout=12)
+        # 🌟 PORTAL FORM DATA FORMAT MAANG RAHA HAI JSON NAHI 🌟
+        login_payload = {
+            "tech_id": tech_id, 
+            "password": password
+        }
+        
+        res = session.post("https://todayfree.xo.je/api/login.php", data=login_payload, timeout=12)
         res_data = res.json()
         
-        # Agar login portal par success hota hai, toh is session ko save rakhna hai
         if res_data.get("success") is True or res_data.get("status") == "success":
             session_pool[tech_id] = session
             
@@ -54,7 +58,7 @@ def web_orders():
         session = session_pool.get(tech_id)
         
         if not session:
-            return jsonify({"success": False, "orders": [], "message": "Session expired, please re-login."})
+            return jsonify({"success": False, "orders": [], "message": "Session expired."})
             
         res = session.get(f"https://todayfree.xo.je/api/get_orders.php?tech_id={tech_id}", timeout=12)
         return jsonify(res.json())
@@ -66,18 +70,19 @@ def web_reach():
     try:
         data = request.json
         tech_id = str(data.get("tech_id", "")).strip()
-        wo_id = data.get("wo_id")
+        wo_id = str(data.get("wo_id", "")).strip()
         
         session = session_pool.get(tech_id)
         if not session:
             return jsonify({"success": False, "message": "No active session found"}), 401
             
+        # Form submission data format rules for bypass action
         reach_payload = {
-            "wo_id": str(wo_id),
+            "wo_id": wo_id,
             "customer": "Unknown Customer",
             "address": "N/A"
         }
-        res = session.post("https://todayfree.xo.je/api/mark_reached.php", json=reach_payload, timeout=12)
+        res = session.post("https://todayfree.xo.je/api/mark_reached.php", data=reach_payload, timeout=12)
         if res.status_code == 200:
             return jsonify({"success": True})
         return jsonify({"success": False}), 400
@@ -125,13 +130,13 @@ def deduct_user_credits(user_id, credits_to_deduct):
 def start_automation_flow(tech_id, password):
     session = requests.Session()
     session.headers.update({
-        'Content-Type': 'application/json', 
+        'Content-Type': 'application/x-www-form-urlencoded', 
         'X-Requested-With': 'welcome.to.dynamoscode',
         'User-Agent': 'Mozilla/5.0 (Linux; Android; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36'
     })
     try:
         login_payload = {"tech_id": str(tech_id).strip(), "password": str(password).strip()}
-        login_res = session.post("https://todayfree.xo.je/api/login.php", json=login_payload, timeout=12)
+        login_res = session.post("https://todayfree.xo.je/api/login.php", data=login_payload, timeout=12)
         login_data = login_res.json()
         
         if login_data.get("success") is True or login_data.get("status") == "success":
@@ -144,7 +149,7 @@ def start_automation_flow(tech_id, password):
             reached_successfully = 0
             for order in progress_orders:
                 reach_payload = {"wo_id": order.get("id"), "customer": "Unknown Customer", "address": "N/A"}
-                reach_res = session.post("https://todayfree.xo.je/api/mark_reached.php", json=reach_payload, timeout=10)
+                reach_res = session.post("https://todayfree.xo.je/api/mark_reached.php", data=reach_payload, timeout=10)
                 if reach_res.status_code == 200: reached_successfully += 1
             
             if reached_successfully > 0: return "success", reached_successfully
