@@ -17,7 +17,7 @@ CO_ADMIN_IDS = [6631326358]   # 👥 Co-Admin ID
 ALLOWED_ADMINS = [SUPER_ADMIN_ID] + CO_ADMIN_IDS
 # ====================================================================
 
-# 🔥 HOSTING ALIVE MECHANISM (Render/Koyeb Ke Liye Webserver)
+# 🔥 HOSTING ALIVE MECHANISM (Render Ke Liye Webserver Setup)
 app = Flask('')
 @app.route('/')
 def home():
@@ -168,16 +168,11 @@ def handle_user_inputs(message):
         user_sessions[chat_id]["msg_history"].append(report_msg.message_id)
         user_sessions[chat_id]["msg_history"].append(next_msg.message_id)
 
-# --------------------------------------------------------------------
-# RUN SYSTEM WITH PARALLEL WEB SERVICES
-# --------------------------------------------------------------------
 if __name__ == '__main__':
-    # Start web server thread
     Thread(target=run_webserver).start()
-    print("🔥 Webserver active on port 8080...")
-    print("🔥 Rocker Xposed Telegram Engine is running perfectly...")
     while True:
         try:
             bot.infinity_polling(timeout=20, long_polling_timeout=10, skip_pending=True)
-        except Exception as e:
+        except Exception:
             time.sleep(5)
+
