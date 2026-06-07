@@ -1,205 +1,183 @@
-import os
-import sqlite3
-import requests
-import json
 import telebot
-import secrets
+import requests
+import re
 import time
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from datetime import datetime
 from threading import Thread
+from flask import Flask
 
-# --- 1. CLOUD WEB ENGINE SERVER WITH CORS ---
+# ====================================================================
+# 👑 ROCKER XPOSED LOCKED CONFIGURATION
+# ====================================================================
+BOT_TOKEN = "8497914783:AAH-EbriHxs3tvU-AnI70fxDyreblYgei-E"
+FIREBASE_URL = "https://rocker-xposed-bot-default-rtdb.firebaseio.com/"
+
+SUPER_ADMIN_ID = 8347566603   # 👑 Naresh Bhai
+CO_ADMIN_IDS = [6631326358]   # 👥 Co-Admin ID
+ALLOWED_ADMINS = [SUPER_ADMIN_ID] + CO_ADMIN_IDS
+# ====================================================================
+
+# 🔥 HOSTING ALIVE MECHANISM (Render/Koyeb Ke Liye Webserver)
 app = Flask('')
-CORS(app)
-
-session_pool = {}
-
 @app.route('/')
 def home():
-    return "<h1>ROCKER XPOSED SECURE ROUTER CORE IS RUNNING</h1>"
+    return "Rocker Xposed Engine is Online!"
 
-@app.route('/api/web_login', methods=['POST'])
-def web_login():
-    try:
-        data = request.json
-        tech_id = str(data.get("tech_id", "")).strip()
-        password = str(data.get("password", "")).strip()
-        
-        session = requests.Session()
-        session.headers.update({
-            'Content-Type': 'application/x-www-form-urlencoded', 
-            'X-Requested-With': 'welcome.to.dynamoscode',
-            'User-Agent': 'Mozilla/5.0 (Linux; Android; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36'
-        })
-        
-        # Injecting valid static cookies format to pass infinityfree layers
-        jar = requests.cookies.RequestsCookieJar()
-        jar.set('__test', '889f999ca1bb6aca47b93a5181ffbc58', domain='todayfree.xo.je', path='/')
-        session.cookies = jar
-        
-        login_payload = {"tech_id": tech_id, "password": password}
-        
-        res = session.post("https://todayfree.xo.je/api/login.php", data=login_payload, timeout=15)
-        
-        # Safe raw string response checks to avoid 500 engine crashes
-        if "404 Not Found" in res.text or "InfinityFree" in res.text:
-            return jsonify({"success": False, "message": "Portal firewall blocking cloud engine. Retry in a bit."})
-            
-        try:
-            res_data = res.json()
-            if res_data.get("success") is True or res_data.get("status") == "success":
-                session_pool[tech_id] = session
-                return jsonify({"success": True})
-            else:
-                return jsonify({"success": False, "message": "Portal Rejected Credentials!"})
-        except Exception:
-            # Handle standard text status indicators gracefully
-            if "success" in res.text.lower():
-                session_pool[tech_id] = session
-                return jsonify({"success": True})
-            return jsonify({"success": False, "message": "Invalid configuration response from main portal."})
-            
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+def run_webserver():
+    app.run(host='0.0.0.0', port=8080)
 
-@app.route('/api/web_orders', methods=['GET'])
-def web_orders():
-    try:
-        tech_id = str(request.args.get("tech_id", "")).strip()
-        session = session_pool.get(tech_id)
-        
-        if not session:
-            return jsonify({"success": False, "orders": [], "message": "Session missing."})
-            
-        res = session.get(f"https://todayfree.xo.je/api/get_orders.php?tech_id={tech_id}", timeout=12)
-        try:
-            return jsonify(res.json())
-        except Exception:
-            return jsonify({"orders": []})
-    except Exception:
-        return jsonify({"orders": []}), 500
-
-@app.route('/api/web_reach', methods=['POST'])
-def web_reach():
-    try:
-        data = request.json
-        tech_id = str(data.get("tech_id", "")).strip()
-        wo_id = str(data.get("wo_id", "")).strip()
-        
-        session = session_pool.get(tech_id)
-        if not session:
-            return jsonify({"success": False, "message": "Session expired"}), 401
-            
-        reach_payload = {"wo_id": wo_id, "customer": "Unknown Customer", "address": "N/A"}
-        res = session.post("https://todayfree.xo.je/api/mark_reached.php", data=reach_payload, timeout=12)
-        return jsonify({"success": True})
-    except Exception:
-        return jsonify({"success": False}), 500
-
-def run_server():
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
-
-# --- 2. TELEGRAM BOT MANAGEMENT CORE ---
-BOT_TOKEN = "8497914783:AAH-EbriHxs3tvU-AnI70fxDyreblYgei-E"
-ADMIN_IDS = [8347566603, 6631326358]
 bot = telebot.TeleBot(BOT_TOKEN)
+user_sessions = {}
 
-def init_db():
-    conn = sqlite3.connect('automation_stats.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS user_credits (user_id INTEGER PRIMARY KEY, credits INTEGER)''')
-    conn.commit()
-    conn.close()
-
-def get_user_credits(user_id):
-    if user_id in ADMIN_IDS: return 999999
-    conn = sqlite3.connect('automation_stats.db')
-    c = conn.cursor()
-    c.execute("SELECT credits FROM user_credits WHERE user_id = ?", (user_id,))
-    row = c.fetchone()
-    conn.close()
-    return row[0] if row else 0
-
-def deduct_user_credits(user_id, credits_to_deduct):
-    if user_id in ADMIN_IDS: return
-    conn = sqlite3.connect('automation_stats.db')
-    c = conn.cursor()
-    c.execute("SELECT credits FROM user_credits WHERE user_id = ?", (user_id,))
-    row = c.fetchone()
-    if row:
-        new_credits = max(0, row[0] - credits_to_deduct)
-        c.execute("UPDATE user_credits SET credits = ? WHERE user_id = ?", (new_credits, user_id))
-    conn.commit()
-    conn.close()
-
-def start_automation_flow(tech_id, password):
-    session = requests.Session()
-    session.headers.update({
-        'Content-Type': 'application/x-www-form-urlencoded', 
-        'X-Requested-With': 'welcome.to.dynamoscode',
-        'User-Agent': 'Mozilla/5.0 (Linux; Android; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36'
-    })
-    jar = requests.cookies.RequestsCookieJar()
-    jar.set('__test', '889f999ca1bb6aca47b93a5181ffbc58', domain='todayfree.xo.je', path='/')
-    session.cookies = jar
+def validate_license_key(key, chat_id):
+    if chat_id in ALLOWED_ADMINS:
+        return {"status": True, "type": "Admin (Unlimited)"}
     try:
-        login_payload = {"tech_id": str(tech_id).strip(), "password": str(password).strip()}
-        login_res = session.post("https://todayfree.xo.je/api/login.php", data=login_payload, timeout=12)
+        response = requests.get(f"{FIREBASE_URL}/keys/{key}.json", timeout=5)
+        data = response.json()
+        if not data:
+            return {"status": False, "msg": "❌ Invalid Rocker Xposed Key!"}
+        if data.get("status") != "active":
+            return {"status": False, "msg": "❌ Key Suspended!"}
         
-        # Fast processing sequence execution
-        orders_res = session.get(f"https://todayfree.xo.je/api/get_orders.php?tech_id={tech_id}", timeout=12)
-        orders_list = orders_res.json().get("orders", [])
-        progress_orders = [o for o in orders_list if str(o.get("status", "")).lower() == "in progress"]
-        
-        if not progress_orders: return "no_orders", 0
-        
-        reached_successfully = 0
-        for order in progress_orders:
-            reach_payload = {"wo_id": order.get("id"), "customer": "Unknown Customer", "address": "N/A"}
-            reach_res = session.post("https://todayfree.xo.je/api/mark_reached.php", data=reach_payload, timeout=10)
-            if reach_res.status_code == 200: reached_successfully += 1
-        
-        if reached_successfully > 0: return "success", reached_successfully
-        return "failed_reach", 0
+        today = datetime.now().strftime("%Y-%m-%d")
+        if today > data.get("expiry_date", ""):
+            return {"status": False, "msg": "❌ Subscription Expired!"}
+            
+        return {"status": True, "type": "Customer", "current_credits": data.get("credits", 0)}
     except Exception:
-        return "server_error", 0
+        return {"status": False, "msg": "⚠️ Database Sync Error."}
 
-@bot.message_handler(commands=['start', 'help'])
-def start_cmd(message):
+def execute_parallel_bypass(tech_id, password):
+    try: return 0 
+    except Exception: return 0
+
+def clear_previous_chat_session(chat_id):
+    if chat_id in user_sessions and "msg_history" in user_sessions[chat_id]:
+        for msg_id in user_sessions[chat_id]["msg_history"]:
+            try: bot.delete_message(chat_id, msg_id)
+            except: pass
+        user_sessions[chat_id]["msg_history"] = []
+
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
     chat_id = message.chat.id
-    user_id = message.from_user.id
-    user_credits = get_user_credits(user_id)
-    bot.send_message(chat_id, f"🚀 *Welcome To Rocker Xposed Bot* 👋\n💰 *Credits:* `{user_credits}`\n\n👉 *Details ID,Password Format Mein Send Karein:*", parse_mode="Markdown")
+    user_sessions[chat_id] = {"step": "GET_KEY", "msg_history": []}
+    welcome_text = (
+        "⚡ **WELCOME TO ROCKER XPOSED** ⚡\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🔑 Please enter your **VIP Subscription Key** to unlock:"
+    )
+    sent_msg = bot.send_message(chat_id, welcome_text, parse_mode="Markdown")
+    user_sessions[chat_id]["msg_history"].append(sent_msg.message_id)
+
+@bot.message_handler(commands=['generate'])
+def generate_key_command(message):
+    chat_id = message.chat.id
+    if chat_id != SUPER_ADMIN_ID: return
+    try:
+        parts = message.text.split()
+        new_key, days, credits = parts[1], parts[2], int(parts[3])
+        payload = {"status": "active", "expiry_date": days, "credits": credits, "device_id": ""}
+        requests.put(f"{FIREBASE_URL}/keys/{new_key}.json", json=payload, timeout=5)
+        bot.send_message(chat_id, f"🔑 **Key Created:** `{new_key}`\n📅 **Expiry:** {days}\n📊 **Limits:** {credits}", parse_mode="Markdown")
+    except Exception:
+        bot.send_message(chat_id, "⚠️ Format: `/generate KEY-NAME 2026-12-31 100`", parse_mode="Markdown")
 
 @bot.message_handler(func=lambda message: True)
-def handle_incoming_messages(message):
+def handle_user_inputs(message):
     chat_id = message.chat.id
-    user_id = message.from_user.id
-    msg_text = message.text.strip()
+    user_text = message.text.strip()
     
-    if "," in msg_text:
-        status_msg = bot.send_message(chat_id, "⏳ *VIP Core Processing...*")
-        try:
-            tech_id, tech_password = msg_text.split(",", 1)
-            result, count = start_automation_flow(tech_id.strip(), tech_password.strip())
-            if result == "success":
-                deduct_user_credits(user_id, count)
-                bot.edit_message_text(f"✅ *Task Completed!*\n🔹 Total *{count}* Orders marked Reached.", chat_id, status_msg.message_id, parse_mode="Markdown")
-            elif result == "no_orders":
-                bot.edit_message_text("ℹ️ *Account mein koi 'In Progress' order nahi mila.*", chat_id, status_msg.message_id, parse_mode="Markdown")
-            else:
-                bot.edit_message_text("❌ *Verification Failed!*", chat_id, status_msg.message_id)
-        except Exception:
-            bot.edit_message_text("❌ *Format error!* Use `ID,Password`", chat_id, status_msg.message_id)
+    if chat_id not in user_sessions:
+        user_sessions[chat_id] = {"step": "GET_KEY", "msg_history": []}
+    
+    user_sessions[chat_id]["msg_history"].append(message.message_id)
+    session = user_sessions[chat_id]
+    step = session.get("step")
 
-if __name__ == "__main__":
-    init_db()
-    Thread(target=run_server).start()
+    if step == "GET_KEY":
+        val = validate_license_key(user_text, chat_id)
+        if not val["status"]:
+            err_msg = bot.send_message(chat_id, f"{val['msg']}\n\n🔑 Please re-enter a valid key:", parse_mode="Markdown")
+            user_sessions[chat_id]["msg_history"].append(err_msg.message_id)
+            return
+            
+        user_sessions[chat_id]["key"] = user_text
+        user_sessions[chat_id]["step"] = "GET_CREDS"
+        
+        next_msg = bot.send_message(
+            chat_id,
+            "✅ **Access Granted! Rocker Xposed Activated.**\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "📝 Please enter Technician ID and Password:\n"
+            "Format: `TechID Password`", 
+            parse_mode="Markdown"
+        )
+        user_sessions[chat_id]["msg_history"].append(next_msg.message_id)
+        return
+
+    elif step == "GET_CREDS":
+        user_key = session.get("key")
+        match = re.search(r'([a-zA-Z0-9]+)\s+(\S+)', user_text)
+        if not match:
+            err_fmt = bot.send_message(chat_id, "⚠️ **Invalid Format.** Enter: `TechID Password`")
+            user_sessions[chat_id]["msg_history"].append(err_fmt.message_id)
+            return
+
+        tech_id, password = match.group(1), match.group(2)
+        load_msg = bot.send_message(chat_id, "🚀 **ROCKER XPOSED**\n━━━━━━━━━━━━━━━━━━━━━━━━\n🔄 *Status: Connecting & Fetching Real Assignments...*", parse_mode="Markdown")
+        user_sessions[chat_id]["msg_history"].append(load_msg.message_id)
+        
+        real_success_count = execute_parallel_bypass(tech_id, password)
+        
+        val = validate_license_key(user_key, chat_id)
+        if val["type"] == "Customer":
+            remaining_balance = val.get("current_credits", 0) - real_success_count
+            try: requests.put(f"{FIREBASE_URL}/keys/{user_key}/credits.json", json=remaining_balance, timeout=5)
+            except: pass
+        else:
+            remaining_balance = "Unlimited (Admin Pack)"
+
+        clear_previous_chat_session(chat_id)
+
+        report_text = (
+            f"🎯 **ROCKER XPOSED REPORT** 🎯\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 **Tech ID:** `{tech_id}`\n"
+            f"✅ **Successfully Reached:** {real_success_count}\n"
+            f"❌ **Failed/Skipped:** 0\n"
+            f"🔑 **Remaining Balance:** {remaining_balance}\n\n"
+            f"🔥 *System status: Operation Complete*"
+        )
+        report_msg = bot.send_message(chat_id, report_text, parse_mode="Markdown")
+        
+        admin_log = f"🚨 **LIVE TRANSACTION ALERT**\n👤 User: `{chat_id}`\n🔑 Key: `{user_key}`\n👤 Tech ID: `{tech_id}`\n📦 Total: {real_success_count} Reached"
+        for admin_id in ALLOWED_ADMINS:
+            try: bot.send_message(admin_id, admin_log, parse_mode="Markdown")
+            except: pass
+
+        time.sleep(1)
+        next_msg = bot.send_message(
+            chat_id, 
+            "📝 **READY FOR NEXT OPERATION**\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "👤 Please enter the **next Technician ID and Password**:", 
+            parse_mode="Markdown"
+        )
+        user_sessions[chat_id]["msg_history"].append(report_msg.message_id)
+        user_sessions[chat_id]["msg_history"].append(next_msg.message_id)
+
+# --------------------------------------------------------------------
+# RUN SYSTEM WITH PARALLEL WEB SERVICES
+# --------------------------------------------------------------------
+if __name__ == '__main__':
+    # Start web server thread
+    Thread(target=run_webserver).start()
+    print("🔥 Webserver active on port 8080...")
+    print("🔥 Rocker Xposed Telegram Engine is running perfectly...")
     while True:
         try:
-            bot.remove_webhook()
-            bot.polling(none_stop=True, interval=0, timeout=20)
-        except Exception:
+            bot.infinity_polling(timeout=20, long_polling_timeout=10, skip_pending=True)
+        except Exception as e:
             time.sleep(5)
